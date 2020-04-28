@@ -1,0 +1,158 @@
+{
+    "$schema": "http://schema.management.azure.com/schemas/2014-04-01-preview/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "administratorLogin": {
+            "type": "String"
+        },
+        "administratorLoginPassword": {
+            "type": "SecureString"
+        },
+        "location": {
+            "type": "String"
+        },
+        "serverGroup": {
+            "type": "String"
+        },
+        "coordinatorVcores": {
+            "type": "Int"
+        },
+        "coordinatorStorageSizeMB": {
+            "type": "Int"
+        },
+        "workerVcores": {
+            "type": "Int"
+        },
+        "workerStorageSizeMB": {
+            "type": "Int"
+        },
+        "numWorkers": {
+            "type": "Int"
+        },
+        "serverGroupTags": {
+            "defaultValue": {},
+            "type": "Object"
+        },
+        "workerNodeTags": {
+            "defaultValue": {},
+            "type": "Object"
+        },
+        "coordinatorNodeTags": {
+            "defaultValue": {},
+            "type": "Object"
+        },
+        "firewallRules": {
+            "defaultValue": {},
+            "type": "Object"
+        },
+        "standbyCount": {
+            "defaultValue": 0,
+            "type": "Int"
+        }
+    },
+    "variables": {
+        "api": "2018-03-29-privatepreview",
+        "serverGroupName": "[parameters('serverGroup')]",
+        "coordName": "[concat(parameters('serverGroup'), '-c')]",
+        "serverSuffix": "[parameters('serverGroup')]",
+        "firewallRules": "[parameters('firewallRules').rules]"
+    },
+    "resources": [
+        {
+            "type": "Microsoft.DBforPostgreSQL/serverGroups",
+            "apiVersion": "[variables('api')]",
+            "name": "[variables('serverGroupName')]",
+            "location": "[parameters('location')]",
+            "tags": "[parameters('serverGroupTags')]",
+            "properties": {
+                "Mode": "citus"
+            }
+        },
+        {
+            "type": "Microsoft.DBforPostgreSQL/serversv2",
+            "apiVersion": "[variables('api')]",
+            "name": "[variables('coordName')]",
+            "location": "[parameters('location')]",
+            "dependsOn": [
+                "[concat('Microsoft.DBforPostgreSQL/serverGroups/', variables('serverGroupName'))]"
+            ],
+            "tags": "[parameters('coordinatorNodeTags')]",
+            "properties": {
+                "version": "11",
+                "Role": "Coordinator",
+                "administratorLogin": "citus",
+                "administratorLoginPassword": "[parameters('administratorLoginPassword')]",
+                "publicIpAddressRequested": "true",
+                "serverEdition": "GeneralPurpose",
+                "VCores": "[parameters('coordinatorVcores')]",
+                "storageQuotaInMb": "[parameters('coordinatorStorageSizeMB')]",
+                "serverGroupName": "[variables('serverGroupName')]",
+                "standbyCount": "[parameters('standbyCount')]"
+            }
+        },
+        {
+            "type": "Microsoft.Resources/deployments",
+            "apiVersion": "2019-08-01",
+            "name": "[concat('firewallRules-', copyIndex())]",
+            "dependsOn": [
+                "[concat('Microsoft.DBforPostgreSQL/serversv2/', variables('coordName'))]"
+            ],
+            "properties": {
+                "mode": "Incremental",
+                "template": {
+                    "$schema": "http://schema.management.azure.com/schemas/2014-04-01-preview/deploymentTemplate.json#",
+                    "contentVersion": "1.0.0.0",
+                    "resources": [
+                        {
+                            "type": "Microsoft.DBforPostgreSQL/serversv2/firewallRules",
+                            "name": "[concat(variables('coordName'),'/',variables('firewallRules')[copyIndex()].name)]",
+                            "apiVersion": "[variables('api')]",
+                            "properties": {
+                                "StartIpAddress": "[variables('firewallRules')[copyIndex()].startIPAddress]",
+                                "EndIpAddress": "[variables('firewallRules')[copyIndex()].endIPAddress]"
+                            }
+                        }
+                    ]
+                }
+            },
+            "copy": {
+                "name": "firewallRulesIterator",
+                "count": "[if(greater(length(variables('firewallRules')), 0), length(variables('firewallRules')), 1)]",
+                "mode": "Serial"
+            },
+            "condition": "[greater(length(variables('firewallRules')), 0)]"
+        },
+        {
+            "type": "Microsoft.DBforPostgreSQL/serversv2",
+            "apiVersion": "[variables('api')]",
+            "name": "[concat(variables('serverSuffix'), '-', 'w', copyIndex())]",
+            "location": "[parameters('location')]",
+            "dependsOn": [
+                "[concat('Microsoft.DBforPostgreSQL/serverGroups/', variables('serverGroupName'))]"
+            ],
+            "tags": "[parameters('workerNodeTags')]",
+            "properties": {
+                "version": "11",
+                "Role": "Worker",
+                "administratorLogin": "citus",
+                "administratorLoginPassword": "[parameters('administratorLoginPassword')]",
+                "publicIpAddressRequested": "false",
+                "serverEdition": "MemoryOptimized",
+                "VCores": "[parameters('workerVcores')]",
+                "storageQuotaInMb": "[parameters('workerStorageSizeMB')]",
+                "serverGroupName": "[variables('serverGroupName')]",
+                "standbyCount": "[parameters('standbyCount')]"
+            },
+            "copy": {
+                "name": "worker",
+                "count": "[parameters('numWorkers')]"
+            }
+        }
+    ],
+    "outputs": {
+        "coordinator hostname": {
+            "type": "String",
+            "value": "[reference(concat('Microsoft.DBforPostgreSQL/serversv2/', variables('coordName')), variables('api')).fullyQualifiedDomainName]"
+        }
+    }
+}

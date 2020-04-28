@@ -1,0 +1,47 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "administratorLogin": {
+            "value": "citus"
+        },
+        "location": {
+            "value": "eastus"
+        },
+        "serverGroup": {
+            "value": "sai-arm-test"
+        },
+        "coordinatorVcores": {
+            "value": 16
+        },
+        "coordinatorStorageSizeMB": {
+            "value": 2097152
+        },
+        "workerVcores": {
+            "value": 16
+        },
+        "workerStorageSizeMB": {
+            "value": 2097152
+        },
+        "numWorkers": {
+            "value": 8
+        },
+        "serverGroupTags": {
+            "value": {}
+        },
+        "workerNodeTags": {
+            "value": {}
+        },
+        "coordinatorNodeTags": {
+            "value": {}
+        },
+        "firewallRules": {
+            "value": {
+                "rules": []
+            }
+        },
+        "standbyCount": {
+            "value": 0
+        }
+    }
+}
