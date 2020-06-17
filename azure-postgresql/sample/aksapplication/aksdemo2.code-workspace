@@ -1,0 +1,13 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "Models"
+		}
+	],
+	"settings": {
+		"git.ignoreLimitWarning": true
+	}
+}

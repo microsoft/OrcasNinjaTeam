@@ -1,0 +1,58 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aksdemo-deployment
+spec:
+  selector:
+    matchLabels:
+      app: aksdemo-pod
+  template:
+    metadata:
+      labels:
+        app: aksdemo-pod
+    spec:
+      containers:
+
+      - name: aksdemo-container
+        image: orcascr.azurecr.io/aksdemo:v5
+        #image: aksdemo:v5
+        resources:
+          limits:
+            memory: "128Mi"
+            cpu: "500m"
+        ports:
+        - containerPort: 80
+      
+      - name: azure-pgbouncer-sidecar
+        image: mcr.microsoft.com/azure-oss-db-tools/pgbouncer-sidecar:latest
+      # Uncomment below if you always want the latest version
+      # imagePullPolicy: Always
+        resources:
+          limits:
+            memory: "128Mi"
+            cpu: "500m"
+        ports:
+        - containerPort: 5432
+        volumeMounts:
+        - name: configfiles
+          mountPath: "/etc/pgbouncer"
+          # writes update the secret, we do not want to do this
+          readOnly: true  
+        livenessProbe:
+           tcpSocket:
+          # This must match the port your applications use to talk to postgres
+             port: 5432
+           periodSeconds: 60
+        lifecycle:
+          preStop:
+            exec:
+              command: ["/bin/sh", "-c", "killall -INT pgbouncer && sleep 120"]
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop: ['all']
+      volumes:
+      - name: configfiles
+        secret:
+          # This must match the name of your secret above
+          secretName: azure-pgbouncer-config

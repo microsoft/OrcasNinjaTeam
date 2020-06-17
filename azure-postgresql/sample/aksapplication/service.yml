@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: aksdemo-service
+spec:
+  selector:
+    app: aksdemo-pod
+  ports:
+  - port: 8001
+    targetPort: 80
+  type: LoadBalancer
