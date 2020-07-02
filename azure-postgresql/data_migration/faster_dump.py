@@ -25,15 +25,15 @@ end=start+interval;
 
 
 for i in range(0,total_threads):
-	if(i!=total_threads-1):
-		select_query = '\"\COPY (SELECT * from test_src WHERE id>='+str(start)+' AND id<'+str(end)+") TO STDOUT\"";
-		read_query = "psql \"" + source_url + "\" -c " + select_query
-		write_query = "psql \"" + dest_url + "\" -c \"\COPY test_dest FROM STDIN\""
-        	os.system(read_query+'|'+write_query + ' &')	
+        if(i!=total_threads-1):
+                select_query = '\"\COPY (SELECT * from ' + source_table + ' WHERE id>='+str(start)+' AND id<'+str(end)+") TO STDOUT\"";
+                read_query = "psql \"" + source_url + "\" -c " + select_query
+                write_query = "psql \"" + dest_url + "\" -c \"\COPY " + dest_table +" FROM STDIN\""
+                os.system(read_query+'|'+write_query + ' &')
         else:
-		select_query = '\"\COPY (SELECT * from test_src WHERE id>='+str(start)+") TO STDOUT\"";
-		read_query = "psql \"" + source_url + "\" -c " + select_query
-		write_query = "psql \"" + dest_url + "\" -c \"\COPY test_dest FROM STDIN\""
-        	os.system(read_query+'|'+write_query)	
-	start=end;
-	end=start+interval;
+                select_query = '\"\COPY (SELECT * from '+ source_table +' WHERE id>='+str(start)+") TO STDOUT\"";
+                read_query = "psql \"" + source_url + "\" -c " + select_query
+                write_query = "psql \"" + dest_url + "\" -c \"\COPY " + dest_table +" FROM STDIN\""
+                os.system(read_query+'|'+write_query)
+        start=end;
+        end=start+interval;
