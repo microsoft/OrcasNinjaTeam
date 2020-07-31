@@ -3,9 +3,11 @@ pg\_dump/pg\_restore can sometimes might not optimal approach for data migration
 - pg\_restore has to wait until pg\_dump finishes. Can be bottlenecked on client IO.
 - pg\_dump/pg\_restore cannot run in parallel across a single table. You can parallelize them across tables but a single table can be read/written only via a single threads. This can be done if the table is partitioned though.
 
-These script(s) focus on optimizing the above 2:
+This tool address both the above issues:
 - Simultaneous reading and writing from source table
 - Ability to use multi-threading to dump/restore on a single table
+
+The tool chunks out the source table based on a watermark (id) columns and uses multiple threads to read from the source table and write into destination table. It uses COPY command in postgres for the reading and writing.
 
 ## Benefits
 - Faster offline xio to pfs migrations 
