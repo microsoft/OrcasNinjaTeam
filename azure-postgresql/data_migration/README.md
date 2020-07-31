@@ -33,3 +33,4 @@ python load_mod.py "host=test_src.postgres.database.azure.com port=5432 dbname=p
 ## Sample results
 -  Migrated 1.4TB table from Sterling single-server to Sterling single-server in *7 hours and 45 minutes*. Medium sized servers (16 vcores)
 -  Can tweak this and make it migrate at a faster rate too - better network, more Vcores, more memory etc.
+- ![Network Throughput: 10GB every 5 minutes](https://github.com/microsoft/OrcasNinjaTeam/blob/master/azure-postgresql/data_migration/image003.png) 
