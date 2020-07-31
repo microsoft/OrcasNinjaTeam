@@ -1,7 +1,7 @@
 # Faster dump/restore
 pg\_dump/pg\_restore is not a super optimal approach for data migration in postgres because:
 - pg\_restore has to wait until pg\_dump finishes.
-- pg\_dump/pg\_restore cannot run in parallel across a single table. You can parallelize them across tables but a single table can be read/written only via a single threads.
+- pg\_dump/pg\_restore cannot run in parallel across a single table. You can parallelize them across tables but a single table can be read/written only via a single threads. This can be done if the table is partitioned though.
 
 These script(s) focus on optimizing the above 2:
 - Simultaneous reading and writing from source table
