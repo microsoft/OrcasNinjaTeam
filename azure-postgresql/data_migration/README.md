@@ -1,4 +1,4 @@
-# Faster dump/restore
+# Parellel Loader
 pg\_dump/pg\_restore can sometimes might not optimal approach for data migration because:
 - pg\_restore has to wait until pg\_dump finishes. Can be bottlenecked on client IO.
 - pg\_dump/pg\_restore cannot run in parallel across a single table. You can parallelize them across tables but a single table can be read/written only via a single threads. This can be done if the table is partitioned though.
