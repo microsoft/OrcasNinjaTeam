@@ -8,13 +8,10 @@ These script(s) focus on optimizing the above 2:
 - Ability to use multi-threading to dump/restore on a single table
 
 ## Benefits
-
-The benefits of this script are 4 fold:
-
-- faster offline xio to pfs migrations 
-- faster offline upgrades 
-- faster offline migrations. 
-- if workload is append only, help improve initial load and reduce downtime for the lag (during initial load) to be applied. 
+- Faster offline xio to pfs migrations 
+- Faster offline upgrades 
+- Faster offline migrations. 
+- If workload is append only, help improve initial load and reduce downtime for the lag (during initial load) to be applied. 
 
 ## Usage:
 ```
