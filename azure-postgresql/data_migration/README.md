@@ -7,6 +7,15 @@ These script(s) focus on optimizing the above 2:
 - Simultaneous reading and writing from source table
 - Ability to use multi-threading to dump/restore on a single table
 
+## Benefits
+
+The benefits of this script are 4 fold:
+
+- faster offline xio to pfs migrations 
+- faster offline upgrades 
+- faster offline migrations. 
+- if workload is append only, help improve initial load and reduce downtime for the lag (during initial load) to be applied. 
+
 ## Usage:
 ```
 python load_mod.py "source_connection_string" source_table "destination_connection_string" destination_table number_of_threads count_of_table
