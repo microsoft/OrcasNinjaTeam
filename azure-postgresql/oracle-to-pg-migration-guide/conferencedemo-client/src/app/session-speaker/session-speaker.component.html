@@ -1,0 +1,42 @@
+<div class="container">
+    <div class="section-white">
+        <div>
+            <h1>Sessions</h1>
+            <p><strong> Listed below are Sessions for Event: {{event.eventName || ''}} </strong></p>
+            <p>{{event.eventDescription || ''}}</p>
+
+        </div>
+        <div class="row" *ngFor="let conferenceSessionsSpeaker of conferenceSessionsSpeakers" style="padding: 5px;">
+            <div class="col-lg-12" style="border: 1px solid gray;">
+                <ul id="session-list" class="unstyled" style="list-style: none; ">
+
+                    <li class="session-item" style="padding-bottom: 20px;">
+                        <h1><span
+                                style="color:#19647E; text-transform: uppercase;">{{conferenceSessionsSpeaker.sessionName}}</span>
+                        </h1>
+                        <p><span style="color:#19647E; text-transform: uppercase; cursor: pointer;"
+                            [routerLink]="['/speaker', conferenceSessionsSpeaker.speakerId]">
+                                {{conferenceSessionsSpeaker.firstName}} {{conferenceSessionsSpeaker.lastName}} </span>
+                        </p>
+                        <p><span style="color:#19647E; text-transform: uppercase;">Date:
+                                {{conferenceSessionsSpeaker.sessionDate  | date :'d MMM, yyyy h:mm a'}} Duration:
+                                {{conferenceSessionsSpeaker.duration}} minutes </span></p>
+
+
+                        <p class="session-abstract"> {{conferenceSessionsSpeaker.sessionDescription}} </p>
+                        <div style="clear: both;"></div>
+                        <span style="float: right;">
+                            <span *ngIf="conferenceSessionsSpeaker.isRegistered">
+                                Registered: {{currentDate | date :'d MMM, yyyy h:mm a'}} </span>
+
+                            <span *ngIf="!conferenceSessionsSpeaker.isRegistered">
+                                <button type="submit" (click)="postRegistration(conferenceSessionsSpeaker.sessionId)"
+                                    style="margin-bottom: 10px;" class="btn btn-primary">Register Here..</button></span>
+
+                        </span>
+                        <!--You now have access to the AttendeeId and the SessionId-->
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>

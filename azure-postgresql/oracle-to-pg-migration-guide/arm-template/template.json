@@ -1,0 +1,572 @@
+{
+  "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "webSiteName": {
+      "type": "string",
+      "metadata": {
+        "description": "Unique API Web Site Name. Use lower case name."
+      }
+    },
+    "alwaysOn": {
+      "type": "bool",
+      "defaultValue": false
+    },
+    "sku": {
+      "type": "string",
+      "allowedValues": [
+        "Free",
+        "Shared",
+        "Basic",
+        "Standard",
+        "Premium"
+      ],
+      "defaultValue": "Basic",
+      "metadata": {
+        "description": "SKU Name"
+      }
+    },
+    "workerSize": {
+      "allowedValues": [
+        "0",
+        "1",
+        "2"
+      ],
+      "defaultValue": "0",
+      "type": "string",
+      "metadata": {
+        "description": "Workers Size"
+      }
+    },
+    "numberOfWorkers": {
+      "type": "int",
+      "defaultValue": 1,
+      "metadata": {
+        "description": "Workers Number"
+      }
+    },
+    "linuxFxVersion": {
+      "type": "string",
+      "defaultValue": "JAVA|11-java11"
+    },
+    "dbServerName": {
+      "type": "string",
+      "metadata": {
+        "description": "PostgreSQL Server Name"
+      }
+    },
+    "dbAdministratorLogin": {
+      "type": "string",
+      "minLength": 6,
+      "metadata": {
+        "description": "Database administrator login name"
+      }
+    },
+    "dbAdministratorLoginPassword": {
+      "type": "securestring",
+      "metadata": {
+        "description": "Database administrator password"
+      }
+    },
+    "databaseSkuCapacity": {
+      "type": "int",
+      "defaultValue": 4,
+      "allowedValues": [
+        2,
+        4,
+        8,
+        16,
+        32
+      ],
+      "metadata": {
+        "description": "Azure database for PostgreSQL compute capacity in vCores (2,4,8,16,32)"
+      }
+    },
+    "databaseSkuName": {
+      "type": "string",
+      "defaultValue": "GP_Gen5_4",
+      "allowedValues": [
+        "GP_Gen5_2",
+        "GP_Gen5_4",
+        "GP_Gen5_8",
+        "GP_Gen5_16",
+        "GP_Gen5_32",
+        "MO_Gen5_2",
+        "MO_Gen5_4",
+        "MO_Gen5_8",
+        "MO_Gen5_16",
+        "MO_Gen5_32",
+        "B_Gen5_1",
+        "B_Gen5_2"
+      ],
+      "metadata": {
+        "description": "Azure database for PostgreSQL sku name "
+      }
+    },
+    "databaseSkuSizeMB": {
+      "type": "int",
+      "allowedValues": [
+        102400,
+        51200
+      ],
+      "defaultValue": 102400,
+      "metadata": {
+        "description": "Azure database for PostgreSQL Sku Size "
+      }
+    },
+    "databaseSkuTier": {
+      "type": "string",
+      "defaultValue": "GeneralPurpose",
+      "allowedValues": [
+        "GeneralPurpose",
+        "MemoryOptimized",
+        "Basic"
+      ],
+      "metadata": {
+        "description": "Azure database for PostgreSQL pricing tier"
+      }
+    },
+    "postgresqlVersion": {
+      "type": "string",
+      "allowedValues": [
+        "9.5",
+        "9.6",
+        "10",
+        "11"
+      ],
+      "defaultValue": "11",
+      "metadata": {
+        "description": "PostgreSQL version"
+      }
+    },
+    "databaseSkuFamily": {
+      "type": "string",
+      "defaultValue": "Gen5",
+      "metadata": {
+        "description": "Azure database for PostgreSQL sku family"
+      }
+    },
+    "backupRetentionDays": {
+      "type": "int",
+      "defaultValue": 7,
+      "minValue": 7,
+      "maxValue": 15,
+      "metadata": {
+        "description": "Backup Retention between 7 and 15 days"
+      }
+    },
+    "databaseGeoRedundantBackup": {
+      "type": "string",
+      "allowedValues": [
+        "Enabled",
+        "Disabled"
+      ],
+      "defaultValue": "Disabled"
+    },
+    "databaseStorageAutoGrow": {
+      "type": "string",
+      "allowedValues": [
+        "Enabled",
+        "Disabled"
+      ],
+      "defaultValue": "Disabled",
+      "metadata": {
+        "description": "PostgreSQL Storage Auto Scale"
+      }
+    },
+    "databaseInfrastructureEncryption": {
+      "type": "string",
+      "allowedValues": [
+        "Enabled",
+        "Disabled"
+      ],
+      "defaultValue": "Disabled",
+      "metadata": {
+        "description": "PostgreSQL Database Encryption"
+      }
+    }
+
+  },
+  "variables": {
+    "webAppClientServerName": "[concat(parameters('webSiteName'), '-client')]",
+    "webAppClientAppServicePlanName": "[concat('/subscriptions/', variables('subscriptionId'), '/resourceGroups/azure-scenarios-experience/providers/Microsoft.Web/serverfarms/azure-scenario-experience')]",
+    "location": "[resourceGroup().location]",
+    "serverfarmgroup": "[resourceGroup().name]",
+    "hostingPlanName": "[concat(parameters('webSiteName'), '-HostPlan')]",
+    "subscriptionid": "[subscription().subscriptionId]",
+    "serverfarms_appsvc": "[concat('/subscriptions/', variables('subscriptionId'),'/resourcegroups/', variables('serverfarmgroup'), '/providers/Microsoft.Web/serverfarms/', variables('hostingPlanName'))]",
+    "insightname": "[concat(parameters('webSiteName'), 'insight')]",
+    "skuValues": "[parameters('sku')]",
+    "skuGroup": {
+      "Free": {
+        "skuCode": "F1"
+      },
+      "Basic": {
+        "skuCode": "B1"
+      },
+      "Shared": {
+        "skuCode": "S1"
+      },
+      "Standard": {
+        "skuCode": "S2"
+      },
+      "Premium": {
+        "skuCode": "P1"
+      }
+    },
+
+    "skuName": "[variables('skuGroup')[variables('skuValues')]]",
+    "databaseTags": {}
+  },
+  "resources": [
+      {
+            "type": "Microsoft.Web/sites",
+            "apiVersion": "2018-11-01",
+            "name": "[variables('webAppClientServerName')]",
+            "location": "[variables('location')]",
+            "kind": "app",
+            "properties": {
+                "enabled": true,
+                "hostNameSslStates": [
+                    {
+                        "name": "[concat(variables('webAppClientServerName'), '.azurewebsites.net')]",
+                        "sslState": "Disabled",
+                        "hostType": "Standard"
+                    },
+                    {
+                        "name": "[concat(variables('webAppClientServerName'), '.scm.azurewebsites.net')]",
+                        "sslState": "Disabled",
+                        "hostType": "Repository"
+                    }
+                ],
+                "serverFarmId": "[variables('webAppClientAppServicePlanName')]",
+                "reserved": false,
+                "isXenon": false,
+                "hyperV": false,
+                "scmSiteAlsoStopped": false,
+                "clientAffinityEnabled": true,
+                "clientCertEnabled": false,
+                "hostNamesDisabled": false,
+                "containerSize": 0,
+                "dailyMemoryTimeQuota": 0,
+                "httpsOnly": false,
+                "redundancyMode": "None"
+            }
+        },
+        {
+            "type": "Microsoft.Web/sites/config",
+            "apiVersion": "2018-11-01",
+            "name": "[concat(variables('webAppClientServerName'), '/web')]",
+            "location": "[variables('location')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Web/sites', variables('webAppClientServerName'))]"
+            ],
+            "properties": {
+                "numberOfWorkers": 1,
+                "defaultDocuments": [
+                    "Default.htm",
+                    "Default.html",
+                    "Default.asp",
+                    "index.htm",
+                    "index.html",
+                    "iisstart.htm",
+                    "default.aspx",
+                    "index.php",
+                    "hostingstart.html"
+                ],
+                "netFrameworkVersion": "v4.0",
+                "phpVersion": "5.6",
+                "requestTracingEnabled": false,
+                "remoteDebuggingEnabled": false,
+                "httpLoggingEnabled": false,
+                "logsDirectorySizeLimit": 35,
+                "detailedErrorLoggingEnabled": false,
+                "publishingUsername": "$foo-th",
+                "scmType": "None",
+                "use32BitWorkerProcess": true,
+                "webSocketsEnabled": false,
+                "alwaysOn": true,
+                "managedPipelineMode": "Integrated",
+                "virtualApplications": [
+                    {
+                        "virtualPath": "/",
+                        "physicalPath": "site\\wwwroot",
+                        "preloadEnabled": true
+                    }
+                ],
+                "loadBalancing": "LeastRequests",
+                "experiments": {
+                    "rampUpRules": []
+                },
+                "autoHealEnabled": false,
+                "localMySqlEnabled": false,
+                "ipSecurityRestrictions": [
+                    {
+                        "ipAddress": "Any",
+                        "action": "Allow",
+                        "priority": 1,
+                        "name": "Allow all",
+                        "description": "Allow all access"
+                    }
+                ],
+                "scmIpSecurityRestrictions": [
+                    {
+                        "ipAddress": "Any",
+                        "action": "Allow",
+                        "priority": 1,
+                        "name": "Allow all",
+                        "description": "Allow all access"
+                    }
+                ],
+                "scmIpSecurityRestrictionsUseMain": false,
+                "http20Enabled": false,
+                "minTlsVersion": "1.2",
+                "ftpsState": "AllAllowed",
+                "reservedInstanceCount": 0
+            }
+        },
+        {
+            "type": "Microsoft.Web/sites/hostNameBindings",
+            "apiVersion": "2018-11-01",
+            "name": "[concat(variables('webAppClientServerName'), '/', variables('webAppClientServerName'), '.azurewebsites.net')]",
+            "location": "[variables('location')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Web/sites', variables('webAppClientServerName'))]"
+            ],
+            "properties": {
+                "siteName": "[variables('webAppClientServerName')]",
+                "hostNameType": "Verified"
+            }
+        },
+    {
+      "apiVersion": "2017-12-01-preview",
+      "kind": "",
+      "location": "[variables('location')]",
+      "name": "[parameters('dbServerName')]",
+      "properties": {
+        "version": "[parameters('postgresqlVersion')]",
+        "administratorLogin": "[parameters('dbAdministratorLogin')]",
+        "administratorLoginPassword": "[parameters('dbAdministratorLoginPassword')]",
+        "storageProfile": {
+          "storageMB": "[parameters('databaseSkuSizeMB')]",
+          "backupRetentionDays": "[parameters('backupRetentionDays')]",
+          "geoRedundantBackup": "[parameters('databaseGeoRedundantBackup')]",
+          "storageAutoGrow": "[parameters('databaseStorageAutoGrow')]"
+        },
+        "previewFeature": "",
+        "infrastructureEncryption": "[parameters('databaseInfrastructureEncryption')]"
+      },
+      "sku": {
+        "name": "[parameters('databaseSkuName')]",
+        "tier": "[parameters('databaseSkuTier')]",
+        "capacity": "[parameters('databaseSkuCapacity')]",
+        "size": "[parameters('databaseSkuSizeMB')]",
+        "family": "[parameters('databaseSkuFamily')]"
+      },
+      "tags": "[variables('databaseTags')]",
+      "type": "Microsoft.DBforPostgreSQL/servers"
+    },
+    {
+      "apiVersion": "2018-11-01",
+      "name": "[variables('hostingPlanName')]",
+      "type": "Microsoft.Web/serverfarms",
+      "location": "[variables('location')]",
+      "kind": "linux",
+      "tags": {},
+      "dependsOn": [],
+      "properties": {
+        "name": "[variables('hostingPlanName')]",
+        "workerSize": "[parameters('workerSize')]",
+        "workerSizeId": "[parameters('workerSize')]",
+        "numberOfWorkers": "[parameters('numberOfWorkers')]",
+        "reserved": true,
+        "hostingEnvironment": ""
+      },
+      "sku": {
+        "Tier": "[parameters('sku')]",
+        "Name": "[variables('skuName').skuCode]"
+      }
+    },
+    {
+      "apiVersion": "2015-05-01",
+      "name": "[variables('insightname')]",
+      "type": "microsoft.insights/components",
+      "location": "[variables('location')]",
+      "tags": null,
+      "properties": {
+        "ApplicationId": "[parameters('webSiteName')]",
+        "Request_Source": "IbizaWebAppExtensionCreate"
+      }
+    },
+    {
+      "apiVersion": "2018-11-01",
+      "name": "[parameters('webSiteName')]",
+      "type": "Microsoft.Web/sites",
+      "location": "[variables('location')]",
+      "kind": "app,linux",
+      "tags": {},
+      "dependsOn": [
+        "[concat('microsoft.insights/components/', variables('insightname'))]",
+        "[concat('Microsoft.Web/serverfarms/', variables('hostingPlanName'))]"
+      ],
+      "properties": {
+        "name": "[parameters('webSiteName')]",
+        "enabled": true,
+        "hostNameSslStates": [
+          {
+            "name": "[concat(parameters('webSiteName'), '.azurewebsites.net')]",
+            "sslState": "Disabled",
+            "hostType": "Standard"
+          },
+          {
+            "name": "[concat(parameters('webSiteName'), '.scm.azurewebsites.net')]",
+            "sslState": "Disabled",
+            "hostType": "Repository"
+          }
+        ],
+        "siteConfig": {
+          "appSettings": [
+            {
+              "name": "APPINSIGHTS_INSTRUMENTATIONKEY",
+              "value": "[reference(concat('microsoft.insights/components/', variables('insightname')), '2015-05-01').InstrumentationKey]"
+            },
+            {
+              "name": "APPLICATIONINSIGHTS_CONNECTION_STRING",
+              "value": "[reference(concat('microsoft.insights/components/', variables('insightname')), '2015-05-01').ConnectionString]"
+            },
+            {
+              "name": "ApplicationInsightsAgent_EXTENSION_VERSION",
+              "value": "~2"
+            },
+            {
+              "name": "XDT_MicrosoftApplicationInsights_Mode",
+              "value": "default"
+            }
+          ],
+          "linuxFxVersion": "[parameters('linuxFxVersion')]",
+          "alwaysOn": "[parameters('alwaysOn')]"
+        },
+        "hostingEnvironment": "",
+        "serverFarmId": "[variables('serverfarms_appsvc')]",
+        "reserved": true,
+        "isXenon": false,
+        "hyperV": false,
+        "scmSiteAlsoStopped": false,
+        "clientAffinityEnabled": false,
+        "clientCertEnabled": false,
+        "hostNamesDisabled": false,
+        "containerSize": 0,
+        "dailyMemoryTimeQuota": 0,
+        "httpsOnly": false,
+        "redundancyMode": "None"
+
+      }
+    },
+    {
+      "type": "Microsoft.Web/sites/config",
+      "apiVersion": "2018-11-01",
+      "name": "[concat(parameters('webSiteName'), '/web')]",
+      "location": "[variables('location')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/sites', parameters('webSiteName'))]"
+      ],
+      "properties": {
+        "numberOfWorkers": 1,
+        "defaultDocuments": [
+          "Default.htm",
+          "Default.html",
+          "Default.asp",
+          "index.htm",
+          "index.html",
+          "iisstart.htm",
+          "default.aspx",
+          "index.php",
+          "hostingstart.html"
+        ],
+        "netFrameworkVersion": "v4.0",
+        "linuxFxVersion": "[parameters('linuxFxVersion')]",
+        "requestTracingEnabled": false,
+        "remoteDebuggingEnabled": false,
+        "remoteDebuggingVersion": "VS2019",
+        "httpLoggingEnabled": true,
+        "logsDirectorySizeLimit": 35,
+        "detailedErrorLoggingEnabled": false,
+        "publishingUsername": "$conferencedemo-90",
+        "scmType": "LocalGit",
+        "use32BitWorkerProcess": true,
+        "webSocketsEnabled": false,
+        "alwaysOn": true,
+        "managedPipelineMode": "Integrated",
+        "virtualApplications": [
+          {
+            "virtualPath": "/",
+            "physicalPath": "site\\wwwroot",
+            "preloadEnabled": true
+          }
+        ],
+        "loadBalancing": "LeastRequests",
+        "experiments": {
+          "rampUpRules": []
+        },
+        "autoHealEnabled": false,
+        "localMySqlEnabled": false,
+        "managedServiceIdentityId": 2528,
+        "ipSecurityRestrictions": [
+          {
+            "ipAddress": "Any",
+            "action": "Allow",
+            "priority": 1,
+            "name": "Allow all",
+            "description": "Allow all access"
+          }
+        ],
+        "scmIpSecurityRestrictions": [
+          {
+            "ipAddress": "Any",
+            "action": "Allow",
+            "priority": 1,
+            "name": "Allow all",
+            "description": "Allow all access"
+          }
+        ],
+        "scmIpSecurityRestrictionsUseMain": false,
+        "http20Enabled": false,
+        "minTlsVersion": "1.2",
+        "ftpsState": "AllAllowed",
+        "reservedInstanceCount": 0
+      }
+    },
+    {
+      "type": "Microsoft.Web/sites/deployments",
+      "apiVersion": "2018-11-01",
+      "name": "[concat(parameters('webSiteName'), '/da9c43254b47417989619aea163fd41e')]",
+      "location": "[variables('location')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/sites', parameters('webSiteName'))]"
+      ],
+      "properties": {
+        "status": 4,
+        "author_email": "N/A",
+        "author": "N/A",
+        "deployer": "Push-Deployer",
+        "message": "Created via a push deployment",
+        "start_time": "2020-03-20T03:23:26.3613691Z",
+        "end_time": "2020-03-20T03:23:39.3977911Z",
+        "active": true
+      }
+    },
+    {
+      "type": "Microsoft.Web/sites/hostNameBindings",
+      "apiVersion": "2018-11-01",
+      "name": "[concat(parameters('webSiteName'), '/', parameters('webSiteName'), '.azurewebsites.net')]",
+      "location": "[variables('location')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/sites', parameters('webSiteName'))]"
+      ],
+      "properties": {
+        "siteName": "[parameters('webSiteName')]",
+        "hostNameType": "Verified"
+      }
+    }
+  ]
+}
