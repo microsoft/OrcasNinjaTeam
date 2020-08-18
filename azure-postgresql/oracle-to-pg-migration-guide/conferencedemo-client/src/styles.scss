@@ -1,0 +1,30 @@
+/* You can add global styles to this file, and also import other style files */
+@import "~@angular/material/prebuilt-themes/indigo-pink.css";
+@import "https://fonts.googleapis.com/icon/family=Material+Icons";
+@import '~bootstrap/dist/css/bootstrap.css';
+
+
+
+
+
+  .speaker-info-text img {
+    margin-top: 20px;
+    margin-bottom: 20px;
+    width: 200px;
+    height: 200px;
+}
+.center-block {
+    display: block;
+    margin-right: auto;
+    margin-left: auto;
+}
+img {
+    vertical-align: middle;
+    border-style: none;
+}
+/* @media (min-width: 768px) */
+.col-md-6 {
+    -ms-flex: 0 0 50%;
+    flex: 0 0 50%;
+    max-width: 50%;
+}

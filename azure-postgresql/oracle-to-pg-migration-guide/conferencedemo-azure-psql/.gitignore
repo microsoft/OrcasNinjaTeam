@@ -1,0 +1,71 @@
+HELP.md
+target/
+!.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**
+!**/src/test/**
+
+### STS ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+
+### IntelliJ IDEA ###
+.idea
+*.iws
+*.iml
+*.ipr
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+build/
+
+### VS Code ###
+.vscode/
+
+
+#
+# Project specific excludes
+#
+
+tomcat
+
+#
+# Default excludes
+#
+
+# Binaries
+*.7z
+*.dmg
+*.gz
+*.iso
+*.jar
+*.rar
+*.tar
+*.zip
+*.war
+*.ear
+*.sar
+*.class
+
+# IntelliJ project files
+*.iml
+*.iws
+*.ipr
+.idea/
+
+# OS
+.DS_Store
+
+# Misc
+*.swp
+release.properties
+pom.xml.releaseBackup
+pom.xml.tag

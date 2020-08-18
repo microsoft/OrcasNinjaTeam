@@ -1,0 +1,12 @@
+<div class="container col-md-6" style="text-align: center;">
+  <div class="row col-md-12">
+    <div >
+      <h1>Speaker: <strong><span class="ng-binding">{{speaker.firstName}} {{speaker.lastName}}</span></strong> </h1>
+      <p class="margin-top speaker-info-text" style="text-align: justify;">
+        <img class="img-responsive center-block" [src]="imgSpeaker" onError="this.src='/assets/images/no-speaker.jpg';" />
+
+        <span class="ng-binding">{{speaker.speakerBio}}</span>
+      </p>
+    </div>
+  </div>
+</div>

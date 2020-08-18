@@ -1,0 +1,21 @@
+<div class="container">
+  <div class="section-white">
+    <div>
+      <h1>Attendees</h1>
+      <p><strong> Listed below are Attendees </strong></p>
+    </div>
+  </div>
+
+  <div class="row" *ngFor="let attendee of attendees" style="border: 1px solid gray; margin-bottom:10px;" >
+    <div class="col-lg-12">
+
+      <h3 style="color: #0067b8;">{{attendee.firstName}} {{attendee.lastName}}</h3>
+
+      <div class="track ng-scope DEV">
+        {{attendee.emailAddress}}
+      </div>
+
+    </div>
+  </div>
+</div>
+ 
