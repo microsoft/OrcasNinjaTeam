@@ -10,19 +10,25 @@ This tool address both the above issues:
 The tool chunks out the source table based on a watermark (id) columns and uses multiple threads to read from the source table and write into destination table. It uses COPY command in postgres for the reading and writing.
 
 ## Benefits
-- Faster offline xio to pfs migrations 
+- Migrate to larger disks/storage (>4TB) in PaaS environment.
 - Faster offline upgrades 
 - Faster offline migrations. 
 - If workload is append only, help improve initial load and reduce downtime for the lag (during initial load) to be applied. 
 
 ## Usage:
 ```
-python load_mod.py "source_connection_string" source_table "destination_connection_string" destination_table number_of_threads count_of_table
+python faster_migration.py "source_connection_string" source_table "destination_connection_string" destination_table number_of_threads count_of_table
 ```
 Ex:
 ```
 python load_mod.py "host=test_src.postgres.database.azure.com port=5432 dbname=postgres user=test@test_src password=xxxx sslmode=require" test_table "host=test_dest.postgres.database.azure.com port=5432 dbname=postgres user=test@test_dest password=xxxx sslmode=require" test_table 8 411187501
 ```
+*count_of_table* can be got by query the sequence value:
+Ex:
+```
+select * from events_id_seq;
+```
+(OR) *count_of_table* can be got by running a count(*) query on the table.
 
 ## Pre-requisites/Recommendations
 - sequential id column has to be present on the table.
