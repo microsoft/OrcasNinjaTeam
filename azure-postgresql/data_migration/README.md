@@ -17,11 +17,11 @@ The tool chunks out the source table based on a watermark (id) columns and uses 
 
 ## Usage:
 ```
-python faster_migration.py "source_connection_string" source_table "destination_connection_string" destination_table number_of_threads count_of_table
+python parallel_migrate.py "source_connection_string" source_table "destination_connection_string" destination_table number_of_threads count_of_table
 ```
 Ex:
 ```
-python faster_migration.py "host=test_src.postgres.database.azure.com port=5432 dbname=postgres user=test@test_src password=xxxx sslmode=require" test_table "host=test_dest.postgres.database.azure.com port=5432 dbname=postgres user=test@test_dest password=xxxx sslmode=require" test_table 8 411187501
+python parallel_migrate.py "host=test_src.postgres.database.azure.com port=5432 dbname=postgres user=test@test_src password=xxxx sslmode=require" test_table "host=test_dest.postgres.database.azure.com port=5432 dbname=postgres user=test@test_dest password=xxxx sslmode=require" test_table 8 411187501
 ```
 *count_of_table* can be got by query the sequence value:
 Ex:
