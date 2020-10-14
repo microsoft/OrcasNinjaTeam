@@ -40,6 +40,6 @@ Currently the usage is restricted to migrate a single large table. But you can r
 - While using parallel loader, don't forget to reset the sequences on the table on the destination database once data is migrated. It doesn't handle resetting sequences on the table you are migrating.
 
 ## Sample results
--  Migrated 1.4TB table from Sterling single-server to Sterling single-server in *7 hours and 45 minutes*. Medium sized servers (16 vcores)
+-  Migrated 1.4TB table from Azure Database for PostgreSQL Single-Server to another Single-Server in *7 hours and 45 minutes*. Medium sized servers (16 vcores)
 -  Can tweak this and make it migrate at a faster rate too - better network, more Vcores, more memory etc.
 - ![Network Throughput: 10GB every 5 minutes](https://github.com/microsoft/OrcasNinjaTeam/blob/master/azure-postgresql/data_migration/image003.png) 
