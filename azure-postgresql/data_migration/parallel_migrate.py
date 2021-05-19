@@ -1,5 +1,4 @@
 #!/usr/bin/python
-import psycopg2
 import os
 import threading
 import time
