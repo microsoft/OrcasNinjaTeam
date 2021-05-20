@@ -22,7 +22,7 @@ namespace Orcas.Function
                         User,
                         Password);
              MySqlConnection conn = new MySqlConnection(connstring);
-             MySqlCommand cmd1 = new MySqlCommand("SELECT * from weatherforecast LIMIT 100", conn);
+             MySqlCommand cmd1 = new MySqlCommand("SELECT * from weatherhistory LIMIT 100", conn);
              MySqlCommand cmd2 = new MySqlCommand("SELECT SLEEP(2)", conn);
              MySqlCommand cmd3 = new MySqlCommand("INSERT INTO `weather`.`weatherhistory` (`day`, `tempf`, `tempc`, `summary`) VALUES ('2021/5/18', '70', '20', 'sunny');",conn);
             try{
