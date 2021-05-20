@@ -31,7 +31,7 @@
 
 ## Configure a function app
 1. Go to Azure portal
-2. Open the new function app that created above
+2. Go to the new function app that created above
 3. Go to ‘Configuration’ at the left pane
 4. Add those three App settings entry
           HOST_NAME: copy from the flex server connection string
@@ -39,7 +39,7 @@
           DBPWD: password of admin user
 
   ## Monitor the app
-1. Go to ‘Log stream’
+1. At Azure portal, go to the function app then ‘Log stream’
 2. Make sure you see this message in every five seconds
 
     2021-05-19T08:09:53Z [Information] Executed 'Functions.mnDBaccess5' (Succeeded, Id=0b092b87-e90a-4c20-b64a-b61604452423, Duration=2061ms)
