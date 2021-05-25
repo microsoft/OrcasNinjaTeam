@@ -4,9 +4,9 @@
 
 ##  Create a sample database
 
-1. In the local repo that you cloned, find OrcasNinjaTeam/azure-mysql/bugbash/hatest/weather.sql file
+1. In the local repo that you cloned, find OrcasNinjaTeam/azure-mysql/bugbash/sampleapp/weather.sql file
 
-2. At MySQL Workbench, run weather.sql to create ‘weather’ database with ‘weatherhistory’ table
+2. At MySQL Workbench, run weather.sql to create ‘weather’ database with ‘weatherhistory’ table at the flex server you created.
 
   
 
