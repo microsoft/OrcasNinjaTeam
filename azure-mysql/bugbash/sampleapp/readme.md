@@ -12,7 +12,7 @@
 
 ## Deploy a function app to Azure
 
-1. At VSCode, Open OrcasNinjaTem/azure-mysql/bugbash/sampleapp
+1. At VSCode, click 'Open Folder...' then select OrcasNinjaTem/azure-mysql/bugbash/sampleapp
 2. Install Azure Functions extension if not yet installed,
 3. Click Azure extenstion icon at left pane.
 4. Sign in to Azure, if not done yet
