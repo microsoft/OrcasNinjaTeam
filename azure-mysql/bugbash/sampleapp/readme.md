@@ -31,7 +31,7 @@
 17. Select location to deploy (same region as the Flex server)
 18. Wait until the deployment is completed
 
-  
+> If you keep having issues of deploying the app, provision an empty Windows 10 VM in Azure and run the steps above in there. Make sure to install all components in the prerequisite section of the [bug bash document](https://microsoft.sharepoint.com/:w:/t/orcasql/EbdAfP2VvBtJq-uD5HrPDnkB9PmKNAOuAyPfs8BabRFv3A?e=qF8IiY).
 
 ## Configure a function app
 1. Go to Azure portal
