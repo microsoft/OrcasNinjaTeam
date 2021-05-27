@@ -1,4 +1,5 @@
 create database weather;
+use weather;
 create table weatherhistory(
     id  int PRIMARY KEY UNIQUE AUTO_INCREMENT,
     day date,
