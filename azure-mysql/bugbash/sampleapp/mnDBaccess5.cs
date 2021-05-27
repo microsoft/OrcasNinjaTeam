@@ -17,7 +17,7 @@ namespace Orcas.Function
              string Password = System.Environment.GetEnvironmentVariable("DBPWD");
              
              string connstring = String.Format(
-                 "Server={0};Port=3306;Database=weather;Uid={1};Pwd={2};SslMode=Preferred",
+                 "Server={0};Port=3306;Database=weather;Uid={1};Pwd={2};SslMode=Preferred;Pooling=false",
                         Host,
                         User,
                         Password);
