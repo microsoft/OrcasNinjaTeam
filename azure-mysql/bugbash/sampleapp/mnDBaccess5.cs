@@ -39,8 +39,16 @@ namespace Orcas.Function
             }
             catch(Exception e)
             {
+                if(
+                    e.Number == (int)MySqlErrorCode.UnableToConnectToHost ||
+                    e.Number == (int)MySqlErrorCode.OptionPreventsStatement ||
+                    (e.Number == 0 && e.HResult == -2147467259)
+                ){
+                    MySqlConnection.ClearPool(conn);
+                    logger.LogInformation($"Cleared current connection pool");
+                }
                 conn.Close();
-                logger.LogError($"Got exception {e.Message}  at: {DateTime.Now}");   
+                logger.LogError($"Got exception {e.Message}  at: {DateTime.Now}");
             }
         }
     }
