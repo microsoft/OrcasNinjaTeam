@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">  
+  <modelVersion>4.0.0</modelVersion>  
+  <groupId>com.yourcompany</groupId>  
+  <artifactId>conferencedemo-client-war</artifactId>  
+  <version>0.0.1-SNAPSHOT</version>  
+  <packaging>war</packaging>  
+  <name>conferencedemo-client-war Maven Webapp</name>  
+  <properties> 
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>  
+    <maven.compiler.source>1.7</maven.compiler.source>  
+    <maven.compiler.target>1.7</maven.compiler.target> 
+  </properties>  
+  <build> 
+    <finalName>conferencedemo-client-war</finalName>  
+    <pluginManagement>
+      <!-- lock down plugins versions to avoid using Maven defaults (may be moved to parent pom) -->  
+      <plugins> 
+        <plugin> 
+          <artifactId>maven-war-plugin</artifactId>  
+          <configuration> 
+            <webXml>src/main/webapp/WEB-INF/web.xml</webXml> 
+          </configuration> 
+        </plugin> 
+      </plugins> 
+    </pluginManagement>  
+    <plugins>
+      <plugin>
+        <groupId>com.microsoft.azure</groupId>
+        <artifactId>azure-webapp-maven-plugin</artifactId>
+        <version>1.9.1</version>
+        <configuration>
+          <schemaVersion>V2</schemaVersion>
+          <subscriptionId>e433f371-e5e9-4238-abc2-7c38aa596a18</subscriptionId>
+          <resourceGroup>cjg-sai-PostgreSQL</resourceGroup>
+          <appName>conferencedemo-onprem-PostgreSQL-to-azure-PostgreSQL-client</appName>
+          <pricingTier>B1</pricingTier>
+          <region>westus2</region>
+          <runtime>
+            <os>linux</os>
+            <javaVersion>java11</javaVersion>
+            <webContainer>TOMCAT 9.0</webContainer>
+          </runtime>
+          <deployment>
+            <resources>
+              <resource>
+                <directory>${project.basedir}/target</directory>
+                <includes>
+                  <include>*.war</include>
+                </includes>
+              </resource>
+            </resources>
+          </deployment>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build> 
+</project>
