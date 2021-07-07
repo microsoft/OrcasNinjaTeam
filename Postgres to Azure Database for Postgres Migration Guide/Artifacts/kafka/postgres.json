@@ -1,0 +1,13 @@
+{
+    "name": "postgresql-connector",
+    "config": {
+      "connector.class": "io.debezium.connector.postgresql.PostgresConnector",
+      "database.hostname": "localhost",
+      "plugin.name": "wal2json",
+      "database.port": "5432",
+      "database.user": "postgres",
+      "database.password": "Seattle123",
+      "database.dbname" : "reg_app",
+      "database.server.name": "localhost"
+    }
+  }

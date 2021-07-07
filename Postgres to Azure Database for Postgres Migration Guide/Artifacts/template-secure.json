@@ -1,0 +1,1501 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "prefix": {
+            "defaultValue": "cjg",
+            "type": "String"
+        },
+        "administratorLogin": {
+          "type": "String",
+          "defaultValue": "sqlroot",
+          "metadata": {
+            "description": "Login for SQL Admin"
+          }
+        },
+        "administratorLoginPassword": {
+            "defaultValue": "Seattle123Seattle123",
+            "type": "String",
+          "metadata": {
+            "description": "Password for VM and SQL Admin"
+          }
+        },
+        "location" : {
+            "type": "string",
+            "allowedValues": [
+                "eastus",
+                "eastus2",
+                "westus",
+                "westus2"
+            ],
+            "defaultValue": "eastus",
+            "metadata": {
+                "description": "The primary location."
+            }
+        }
+    },
+    "variables": {
+        "unique" : "[uniqueString(resourceGroup().id)]",
+        "location" : "[parameters('location')]",
+        "dns-domain" : "[concat(parameters('prefix'),'privatedns.com')]",
+        "secondaryLocation" : {
+            "eastus" : "westus",
+            "eastus2" : "westus2",
+            "westus" : "eastus",
+            "westus2" : "eastus2"
+        },
+        "linuxFxVersion": "JAVA|11-java11",
+        "alwaysOn": "true",
+        "dms-name": "[concat(parameters('prefix'),'-dms')]",
+        "factory-name": "[concat(parameters('prefix'),'-pg-adf-', variables('unique'))]",
+        "vault-name": "[concat(parameters('prefix'),'-kv-', variables('unique'))]",
+        "vm_db_name": "[concat(parameters('prefix'),'-vm-pgdb01')]",
+        "app_name": "[concat(parameters('prefix'),'-app01')]",
+        "api_name": "[concat(parameters('prefix'),'-api01')]",
+        "insights-name": "[concat(parameters('prefix'),'-pg-insights')]",
+        "pg_db_single": "[concat(parameters('prefix'),'-pg-single-', variables('unique'))]",
+        "pg-flex-01": "[concat(parameters('prefix'),'-pg-flex-', variables('unique'))]",
+        "pg_db_citus": "[concat(parameters('prefix'),'-pg-citus-', variables('unique'))]",
+        "pg_db_citus_version": "13",
+        "pg_db_citus_preview": true,
+        "pg_db_citus_coordCores": 2,
+        "pg_db_citus_workerCores": 4,
+        "pg_db_citus_workers": 1,
+        "pg_db_citus_workerSizeMB": 524288,
+        "pg_db_citus_coordSizeMB": 131072,
+        "pg_db_citus_ha": false,
+        "vm-db-ip": "[concat(parameters('prefix'),'-vm-pg-ip-01')]",
+        "pg-dms-name": "[concat(parameters('prefix'),'-pg-dms-01')]",
+        "pg-vnet-db": "[concat(parameters('prefix'),'-vnet-postgresql')]",
+        "pg-vnet-app01": "[concat(parameters('prefix'),'-vnet-app01')]",
+        "pg-vnet-hub": "[concat(parameters('prefix'),'-vnet-hub')]",
+        "pg-nsg-01": "[concat(parameters('prefix'),'-pg-nsg')]",
+        "pg-nic-01": "[concat(parameters('prefix'),'-vm-pg-nic-01')]",
+        "pg-nic-02": "[concat(parameters('prefix'),'-nic-02')]",
+        "pg-nic-03": "[concat(parameters('prefix'),'-nic-03')]",
+        "vnetData": "",
+        "vnetDataSet": "[if(empty(variables('vnetData')), json('{ \"subnetArmResourceId\": \"\" }'), variables('vnetData'))]",
+        "finalVnetData": "[json(concat('{ \"SubnetArmResourceId\": \"', variables('vnetDataSet').subnetArmResourceId, '\"}'))]"
+    },
+    "resources": [
+        {
+            "type": "Microsoft.DataMigration/services",
+            "apiVersion": "2018-07-15-preview",
+            "name": "[variables('dms-name')]",
+            "location": "[variables('location')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/networkInterfaces', variables('pg-nic-03'))]",
+                "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('pg-vnet-hub'), 'default')]"
+            ],
+            "sku": {
+                "name": "Standard_1vCores",
+                "tier": "Standard",
+                "size": "1 vCores"
+            },
+            "kind": "Cloud",
+            "properties": {
+                "virtualSubnetId": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('pg-vnet-hub'), 'default')]"
+            }
+        },
+        {
+            "type": "Microsoft.DBforPostgreSQL/servers",
+            "apiVersion": "2017-12-01",
+            "name": "[variables('pg_db_single')]",
+            "location": "[variables('location')]",
+            "sku": {
+                "name": "GP_Gen5_2",
+                "tier": "GeneralPurpose",
+                "family": "Gen5",
+                "capacity": 2
+            },
+            "properties": {
+                "administratorLogin" : "[parameters('administratorLogin')]",
+                "administratorLoginPassword" : "[parameters('administratorLoginPassword')]",
+                "storageProfile": {
+                    "storageMB": 102400,
+                    "backupRetentionDays": 7,
+                    "geoRedundantBackup": "Disabled",
+                    "storageAutogrow": "Enabled"
+                },
+                "version": "11",
+                "sslEnforcement": "Enabled",
+                "minimalTlsVersion": "TLSEnforcementDisabled",
+                "infrastructureEncryption": "Disabled",
+                "publicNetworkAccess": "Enabled"
+            }
+        },
+        {
+            "type": "Microsoft.DBforPostgreSQL/servers/virtualNetworkRules",
+            "apiVersion": "2017-12-01",
+            "name": "[concat(variables('pg_db_single'), '/', concat(parameters('prefix'), 'pgdb'))]",
+            "dependsOn": [
+                "[resourceId('Microsoft.DBforPostgreSQL/servers', variables('pg_db_single'))]",
+                "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('pg-vnet-db'), 'default')]"
+            ],
+            "properties": {
+                "virtualNetworkSubnetId": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('pg-vnet-db'), 'default')]",
+                "ignoreMissingVnetServiceEndpoint": true
+            }
+        },
+        {
+            "type": "Microsoft.DBforPostgreSQL/flexibleServers",
+            "apiVersion": "2020-02-14-preview",
+            "name": "[variables('pg-flex-01')]",
+            "location": "[variables('location')]",
+            "sku": {
+                "name": "Standard_D2s_v3",
+                "tier": "GeneralPurpose",
+                "capacity": 2
+            },
+            "properties": {
+                "version": "12",
+                "haEnabled": "Disabled",
+                "administratorLogin": "[parameters('administratorLogin')]",
+                "administratorLoginPassword" : "[parameters('administratorLoginPassword')]",
+                "availabilityZone": "2",
+                "storageProfile": {
+                    "storageMB": 131072,
+                    "backupRetentionDays": 7
+                },
+                "maintenanceWindow": {
+                    "customWindow": "Disabled",
+                    "dayOfWeek": 0,
+                    "startHour": 0,
+                    "startMinute": 0
+                }
+            }
+        },
+        {
+            "apiVersion": "2020-10-05-privatepreview",
+            "location": "[variables('location')]",
+            "name": "[variables('pg_db_citus')]",
+            "type": "Microsoft.DBforPostgreSQL/serverGroupsv2",
+            "properties": {
+                "createMode": "Default",
+                "administratorLogin": "citus",
+                "administratorLoginPassword": "[parameters('administratorLoginPassword')]",
+                "backupRetentionDays": 35,
+                "DelegatedSubnetArguments": "[if(empty(variables('vnetData')), json('null'), variables('finalVnetData'))]",
+                "enableMx": false,
+                "enableZfs": false,
+                "previewFeatures": "[variables('pg_db_citus_preview')]",
+                "postgresqlVersion": "[variables('pg_db_citus_version')]",
+                "serverRoleGroups": [
+                    {
+                        "name": "",
+                        "role": "Coordinator",
+                        "serverCount": 1,
+                        "serverEdition": "GeneralPurpose",
+                        "vCores": "[variables('pg_db_citus_coordCores')]",
+                        "storageQuotaInMb": "[variables('pg_db_citus_coordSizeMB')]",
+                        "enableHa": "[variables('pg_db_citus_ha')]"
+                    },
+                    {
+                        "name": "",
+                        "role": "Worker",
+                        "serverCount": "[variables('pg_db_citus_workers')]",
+                        "serverEdition": "MemoryOptimized",
+                        "vCores": "[variables('pg_db_citus_workerCores')]",
+                        "storageQuotaInMb": "[variables('pg_db_citus_workerSizeMB')]",
+                        "enableHa": "[variables('pg_db_citus_ha')]"
+                    }
+                ]
+            }
+        },
+        {
+            "type": "Microsoft.DataFactory/factories",
+            "apiVersion": "2018-06-01",
+            "name": "[variables('factory-name')]",
+            "location": "[variables('location')]",
+            "properties": {}
+        },
+        {
+            "type": "microsoft.insights/components",
+            "apiVersion": "2018-05-01-preview",
+            "name": "[variables('insights-name')]",
+            "location": "[variables('location')]",
+            "kind": "web",
+            "properties": {
+                "Application_Type": "web",
+                "Request_Source": "IbizaWebAppExtensionCreate",
+                "RetentionInDays": 90,
+                "publicNetworkAccessForIngestion": "Enabled",
+                "publicNetworkAccessForQuery": "Enabled"
+            }
+        },
+        {
+            "type": "Microsoft.Network/privateDnsZones",
+            "apiVersion": "2018-09-01",
+            "name": "[variables('dns-domain')]",
+            "location": "global",
+            "properties": {
+                "maxNumberOfRecordSets": 25000,
+                "maxNumberOfVirtualNetworkLinks": 1000,
+                "maxNumberOfVirtualNetworkLinksWithRegistration": 100,
+                "numberOfRecordSets": 2,
+                "numberOfVirtualNetworkLinks": 1,
+                "numberOfVirtualNetworkLinksWithRegistration": 0
+            }
+        },
+        {
+            "type": "Microsoft.Network/virtualNetworks",
+            "apiVersion": "2020-05-01",
+            "name": "[variables('pg-vnet-app01')]",
+            "location": "[variables('location')]",
+            "properties": {
+                "addressSpace": {
+                    "addressPrefixes": [
+                        "10.6.0.0/16"
+                    ]
+                },
+                "subnets": [
+                    {
+                        "name": "default",
+                        "properties": {
+                            "addressPrefix": "10.6.0.0/24",
+                            "delegations": [],
+                            "privateEndpointNetworkPolicies": "Disabled",
+                            "privateLinkServiceNetworkPolicies": "Enabled"
+                        }
+                    }
+                ],
+                "virtualNetworkPeerings": [
+                    {
+                        "name": "app01-to-hub",
+                        "properties": {
+                            "remoteVirtualNetwork": {
+                                "id" : "[resourceId('Microsoft.Network/virtualNetworks', variables('pg-vnet-hub'))]"
+                            },
+                            "allowVirtualNetworkAccess": true,
+                            "allowForwardedTraffic": false,
+                            "allowGatewayTransit": false,
+                            "useRemoteGateways": false,
+                            "remoteAddressSpace": {
+                                "addressPrefixes": [
+                                    "10.5.0.0/16"
+                                ]
+                            }
+                        }
+                    }
+                ],
+                "enableDdosProtection": false,
+                "enableVmProtection": false
+            },
+            "resources": [
+                {
+                    "apiVersion": "2020-05-01",
+                    "type": "virtualNetworkPeerings",
+                    "name": "app01-to-hub",
+                    "location": "[variables('location')]",
+                    "dependsOn": [
+                        "[resourceId('Microsoft.Network/virtualNetworks/', variables('pg-vnet-app01'))]",
+                        "[resourceId('Microsoft.Network/virtualNetworks/', variables('pg-vnet-hub'))]"
+                    ],
+                    "comments": "app01 to hub",
+                    "properties": {
+                        "allowVirtualNetworkAccess": true,
+                        "allowForwardedTraffic": false,
+                        "allowGatewayTransit": false,
+                        "useRemoteGateways": false,
+                        "remoteVirtualNetwork": {
+                            "id": "[resourceId('Microsoft.Network/virtualNetworks', variables('pg-vnet-hub'))]"
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "type": "Microsoft.Network/virtualNetworks",
+            "apiVersion": "2020-05-01",
+            "name": "[variables('pg-vnet-hub')]",
+            "location": "[variables('location')]",
+            "properties": {
+                "addressSpace": {
+                    "addressPrefixes": [
+                        "10.5.0.0/16"
+                    ]
+                },
+                "subnets": [
+                    {
+                        "name": "default",
+                        "properties": {
+                            "addressPrefix": "10.5.0.0/24",
+                            "delegations": [],
+                            "privateEndpointNetworkPolicies": "Disabled",
+                            "privateLinkServiceNetworkPolicies": "Enabled"
+                        }
+                    },
+                    {
+                        "name": "appGateway",
+                        "properties": {
+                            "addressPrefix": "10.5.1.0/24",
+                            "serviceEndpoints": [],
+                            "delegations": [],
+                            "privateEndpointNetworkPolicies": "Disabled",
+                            "privateLinkServiceNetworkPolicies": "Enabled"
+                        }
+                    }
+                ],
+                "virtualNetworkPeerings": [],
+                "enableDdosProtection": false,
+                "enableVmProtection": false
+            },
+            "resources": [
+                {
+                    "apiVersion": "2020-05-01",
+                    "type": "virtualNetworkPeerings",
+                    "name": "hub-to-app01",
+                    "location": "[variables('location')]",
+                    "dependsOn": [
+                        "[resourceId('Microsoft.Network/virtualNetworks/', variables('pg-vnet-app01'))]",
+                        "[resourceId('Microsoft.Network/virtualNetworks/', variables('pg-vnet-hub'))]"
+                    ],
+                    "comments": "hub to app01",
+                    "properties": {
+                        "allowVirtualNetworkAccess": true,
+                        "allowForwardedTraffic": false,
+                        "allowGatewayTransit": false,
+                        "useRemoteGateways": false,
+                        "remoteVirtualNetwork": {
+                            "id": "[resourceId('Microsoft.Network/virtualNetworks',variables('pg-vnet-app01'))]"
+                        }
+                    }
+                },
+                {
+                    "apiVersion": "2020-05-01",
+                    "type": "virtualNetworkPeerings",
+                    "name": "hub-to-pgdb",
+                    "location": "[variables('location')]",
+                    "dependsOn": [
+                        "[resourceId('Microsoft.Network/virtualNetworks/', variables('pg-vnet-db'))]",
+                        "[resourceId('Microsoft.Network/virtualNetworks/', variables('pg-vnet-hub'))]"
+                    ],
+                    "comments": "hub to pgdb",
+                    "properties": {
+                        "allowVirtualNetworkAccess": true,
+                        "allowForwardedTraffic": false,
+                        "allowGatewayTransit": false,
+                        "useRemoteGateways": false,
+                        "remoteVirtualNetwork": {
+                            "id": "[resourceId('Microsoft.Network/virtualNetworks',variables('pg-vnet-db'))]"
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "type": "Microsoft.Network/virtualNetworks",
+            "apiVersion": "2020-05-01",
+            "name": "[variables('pg-vnet-db')]",
+            "location": "[variables('location')]",
+            "properties": {
+                "addressSpace": {
+                    "addressPrefixes": [
+                        "10.7.0.0/16"
+                    ]
+                },
+                "subnets": [
+                    {
+                        "name": "default",
+                        "properties": {
+                            "addressPrefix": "10.7.0.0/24",
+                            "delegations": [],
+                            "privateEndpointNetworkPolicies": "Disabled",
+                            "privateLinkServiceNetworkPolicies": "Enabled"
+                        }
+                    }
+                ],
+                "virtualNetworkPeerings": [
+                    {
+                        "name": "pgdb-to-hub",
+                        "properties": {
+                            "peeringState": "Connected",
+                            "remoteVirtualNetwork": {
+                                "id" : "[resourceId('Microsoft.Network/virtualNetworks', variables('pg-vnet-hub'))]"
+                            },
+                            "allowVirtualNetworkAccess": true,
+                            "allowForwardedTraffic": false,
+                            "allowGatewayTransit": false,
+                            "useRemoteGateways": false,
+                            "remoteAddressSpace": {
+                                "addressPrefixes": [
+                                    "10.5.0.0/16"
+                                ]
+                            }
+                        }
+                    }
+                ],
+                "enableDdosProtection": false,
+                "enableVmProtection": false
+            },
+            "resources": [
+                {
+                    "apiVersion": "2020-05-01",
+                    "type": "virtualNetworkPeerings",
+                    "name": "pgdb-to-hub",
+                    "location": "[variables('location')]",
+                    "dependsOn": [
+                        "[resourceId('Microsoft.Network/virtualNetworks/', variables('pg-vnet-db'))]",
+                        "[resourceId('Microsoft.Network/virtualNetworks/', variables('pg-vnet-hub'))]"
+                    ],
+                    "comments": "pgdb to hub",
+                    "properties": {
+                        "allowVirtualNetworkAccess": true,
+                        "allowForwardedTraffic": false,
+                        "allowGatewayTransit": false,
+                        "useRemoteGateways": false,
+                        "remoteVirtualNetwork": {
+                            "id": "[resourceId('Microsoft.Network/virtualNetworks',variables('pg-vnet-hub'))]"
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "type": "microsoft.operationalinsights/workspaces",
+            "apiVersion": "2020-08-01",
+            "name": "[concat(parameters('prefix'), 'logs')]",
+            "location": "[variables('location')]",
+            "properties": {
+                "sku": {
+                    "name": "pergb2018"
+                },
+                "retentionInDays": 30,
+                "workspaceCapping": {
+                    "dailyQuotaGb": -1
+                },
+                "publicNetworkAccessForIngestion": "Enabled",
+                "publicNetworkAccessForQuery": "Enabled"
+            }
+        },
+        {
+            "type": "Microsoft.Web/serverfarms",
+            "apiVersion": "2018-02-01",
+            "name": "[concat(parameters('prefix'), 'appsvc')]",
+            "location": "[variables('location')]",
+            "sku": {
+                "name": "P1v2",
+                "tier": "PremiumV2",
+                "size": "P1v2",
+                "family": "Pv2",
+                "capacity": 1
+            },
+            "kind": "linux",
+            "properties": {
+                "perSiteScaling": false,
+                "maximumElasticWorkerCount": 1,
+                "isSpot": false,
+                "isXenon": false,
+                "hyperV": false,
+                "targetWorkerCount": 0,
+                "targetWorkerSizeId": 0,
+                "workerSize": 3,
+                "workerSizeId": 3,
+                "numberOfWorkers": 2,
+                "reserved": true
+            }
+        },
+        {
+            "type": "Microsoft.Network/networkInterfaces",
+            "apiVersion": "2020-05-01",
+            "name": "[variables('pg-nic-03')]",
+            "location": "[variables('location')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('pg-vnet-hub'), 'default')]"
+            ],
+            "properties": {
+                "ipConfigurations": [
+                    {
+                        "name": "dms.privateEndpoint",
+                        "properties": {
+                            "privateIPAddress": "10.5.0.5",
+                            "privateIPAllocationMethod": "Dynamic",
+                            "subnet": {
+                                "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('pg-vnet-hub'), 'default')]"
+                            },
+                            "primary": true,
+                            "privateIPAddressVersion": "IPv4"
+                        }
+                    }
+                ],
+                "dnsSettings": {
+                    "dnsServers": []
+                },
+                "enableAcceleratedNetworking": false,
+                "enableIPForwarding": false
+            }
+        },
+        {
+            "type": "Microsoft.Network/networkInterfaces",
+            "apiVersion": "2020-05-01",
+            "name": "[concat(parameters('prefix'), 'app01-pe-nic')]",
+            "location": "[variables('location')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('pg-vnet-app01'), 'default')]"
+            ],
+            "properties": {
+                "ipConfigurations": [
+                    {
+                        "name": "app01.privateEndpoint",
+                        "properties": {
+                            "privateIPAddress": "10.6.0.5",
+                            "privateIPAllocationMethod": "Dynamic",
+                            "subnet": {
+                                "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('pg-vnet-app01'), 'default')]"
+                            },
+                            "primary": true,
+                            "privateIPAddressVersion": "IPv4"
+                        }
+                    }
+                ],
+                "dnsSettings": {
+                    "dnsServers": []
+                },
+                "enableAcceleratedNetworking": false,
+                "enableIPForwarding": false
+            }
+        },
+        {
+            "type": "Microsoft.Network/networkInterfaces",
+            "apiVersion": "2020-05-01",
+            "name": "[concat(parameters('prefix'), 'pgdb-pe-nic')]",
+            "location": "[variables('location')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('pg-vnet-db'), 'default')]"
+            ],
+            "properties": {
+                "ipConfigurations": [
+                    {
+                        "name": "pgdb-pgdb.privateEndpoint",
+                        "properties": {
+                            "privateIPAddress": "10.7.0.4",
+                            "privateIPAllocationMethod": "Dynamic",
+                            "subnet": {
+                                "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('pg-vnet-db'), 'default')]"
+                            },
+                            "primary": true,
+                            "privateIPAddressVersion": "IPv4"
+                        }
+                    }
+                ],
+                "dnsSettings": {
+                    "dnsServers": []
+                },
+                "enableAcceleratedNetworking": false,
+                "enableIPForwarding": false
+            }
+        },
+        {
+            "type": "Microsoft.Network/privateDnsZones/A",
+            "apiVersion": "2018-09-01",
+            "name": "[concat(parameters('prefix'), 'privatedns.com', '/', variables('app_name'))]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/privateDnsZones', concat(parameters('prefix'), 'privatedns.com'))]"
+            ],
+            "properties": {
+                "ttl": 10,
+                "aRecords": [
+                    {
+                        "ipv4Address": "10.6.0.4"
+                    }
+                ]
+            }
+        },
+        {
+            "type": "Microsoft.Network/privateDnsZones/A",
+            "apiVersion": "2018-09-01",
+            "name": "[concat(parameters('prefix'), 'privatedns.com', '/', variables('api_name'))]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/privateDnsZones', concat(parameters('prefix'), 'privatedns.com'))]"
+            ],
+            "properties": {
+                "ttl": 10,
+                "aRecords": [
+                    {
+                        "ipv4Address": "10.6.0.5"
+                    }
+                ]
+            }
+        },
+        {
+            "type": "Microsoft.Network/privateDnsZones/A",
+            "apiVersion": "2018-09-01",
+            "name": "[concat(parameters('prefix'), 'privatedns.com', '/', variables('vm_db_name'))]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/privateDnsZones', concat(parameters('prefix'), 'privatedns.com'))]"
+            ],
+            "properties": {
+                "ttl": 10,
+                "aRecords": [
+                    {
+                        "ipv4Address": "10.5.0.4"
+                    }
+                ]
+            }
+        },
+        {
+            "type": "Microsoft.Network/privateDnsZones/A",
+            "apiVersion": "2018-09-01",
+            "name": "[concat(parameters('prefix'), 'privatedns.com', '/', variables('dms-name'))]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/privateDnsZones', concat(parameters('prefix'), 'privatedns.com'))]"
+            ],
+            "properties": {
+                "ttl": 10,
+                "aRecords": [
+                    {
+                        "ipv4Address": "10.5.0.5"
+                    }
+                ]
+            }
+        },
+        {
+            "type": "Microsoft.Network/privateDnsZones/A",
+            "apiVersion": "2018-09-01",
+            "name": "[concat(parameters('prefix'), 'privatedns.com', '/', variables('pg_db_single'))]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/privateDnsZones', concat(parameters('prefix'), 'privatedns.com'))]"
+            ],
+            "properties": {
+                "ttl": 10,
+                "aRecords": [
+                    {
+                        "ipv4Address": "10.7.0.4"
+                    }
+                ]
+            }
+        },
+        {
+            "type": "Microsoft.Network/privateDnsZones/SOA",
+            "apiVersion": "2018-09-01",
+            "name": "[concat(parameters('prefix'), 'privatedns.com', '/@')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/privateDnsZones', concat(parameters('prefix'), 'privatedns.com'))]"
+            ],
+            "properties": {
+                "ttl": 3600,
+                "soaRecord": {
+                    "email": "azureprivatedns-host.microsoft.com",
+                    "expireTime": 2419200,
+                    "host": "azureprivatedns.net",
+                    "refreshTime": 3600,
+                    "retryTime": 300,
+                    "serialNumber": 1,
+                    "minimumTtl": 10
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Network/virtualNetworks/subnets",
+            "apiVersion": "2020-05-01",
+            "name": "[concat(variables('pg-vnet-hub'), '/appGateway')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/virtualNetworks', variables('pg-vnet-hub'))]"
+            ],
+            "properties": {
+                "addressPrefix": "10.5.1.0/24",
+                "serviceEndpoints": [],
+                "delegations": [],
+                "privateEndpointNetworkPolicies": "Disabled",
+                "privateLinkServiceNetworkPolicies": "Enabled"
+            }
+        },
+        {
+            "type": "Microsoft.Network/virtualNetworks/subnets",
+            "apiVersion": "2020-05-01",
+            "name": "[concat(variables('pg-vnet-app01'), '/default')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/virtualNetworks', variables('pg-vnet-app01'))]"
+            ],
+            "properties": {
+                "addressPrefix": "10.6.0.0/24",
+                "delegations": [],
+                "privateEndpointNetworkPolicies": "Disabled",
+                "privateLinkServiceNetworkPolicies": "Enabled"
+            }
+        },
+        {
+            "type": "Microsoft.Network/virtualNetworks/subnets",
+            "apiVersion": "2020-05-01",
+            "name": "[concat(variables('pg-vnet-hub'), '/default')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/virtualNetworks', variables('pg-vnet-hub'))]"
+            ],
+            "properties": {
+                "addressPrefix": "10.5.0.0/24",
+                "delegations": [],
+                "privateEndpointNetworkPolicies": "Disabled",
+                "privateLinkServiceNetworkPolicies": "Enabled"
+            }
+        },
+        {
+            "type": "Microsoft.Network/virtualNetworks/subnets",
+            "apiVersion": "2020-05-01",
+            "name": "[concat(variables('pg-vnet-db'), '/default')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/virtualNetworks', variables('pg-vnet-db'))]"
+            ],
+            "properties": {
+                "addressPrefix": "10.7.0.0/24",
+                "delegations": [],
+                "privateEndpointNetworkPolicies": "Disabled",
+                "privateLinkServiceNetworkPolicies": "Enabled"
+            }
+        },
+        {
+            "type": "Microsoft.Web/sites",
+            "apiVersion": "2018-11-01",
+            "name": "[variables('api_name')]",
+            "location": "[variables('location')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Web/serverfarms', concat(parameters('prefix'), 'appsvc'))]"
+            ],
+            "kind": "app",
+            "properties": {
+                "enabled": true,
+                "hostNameSslStates": [
+                    {
+                        "name": "[concat(variables('api_name'), '.azurewebsites.net')]",
+                        "sslState": "Disabled",
+                        "hostType": "Standard"
+                    },
+                    {
+                        "name": "[concat(variables('api_name'), '.scm.azurewebsites.net')]",
+                        "sslState": "Disabled",
+                        "hostType": "Repository"
+                    }
+                ],
+                "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', concat(parameters('prefix'), 'appsvc'))]",
+                "reserved": false,
+                "isXenon": false,
+                "hyperV": false,
+                "siteConfig": {
+                    "appSettings": [],
+                    "linuxFxVersion": "[variables('linuxFxVersion')]",
+                    "alwaysOn": "[variables('alwaysOn')]"
+                },
+                "scmSiteAlsoStopped": false,
+                "clientAffinityEnabled": true,
+                "clientCertEnabled": false,
+                "hostNamesDisabled": false,
+                "containerSize": 0,
+                "dailyMemoryTimeQuota": 0,
+                "httpsOnly": false,
+                "redundancyMode": "None"
+            }
+        },
+        {
+            "type": "Microsoft.Web/sites",
+            "apiVersion": "2018-11-01",
+            "name": "[variables('app_name')]",
+            "location": "[variables('location')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Web/serverfarms', concat(parameters('prefix'), 'appsvc'))]"
+            ],
+            "kind": "app",
+            "properties": {
+                "enabled": true,
+                "hostNameSslStates": [
+                    {
+                        "name": "[concat(variables('app_name'), '.azurewebsites.net')]",
+                        "sslState": "Disabled",
+                        "hostType": "Standard"
+                    },
+                    {
+                        "name": "[concat(variables('app_name'), '.scm.azurewebsites.net')]",
+                        "sslState": "Disabled",
+                        "hostType": "Repository"
+                    }
+                ],
+                "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', concat(parameters('prefix'), 'appsvc'))]",
+                "reserved": false,
+                "isXenon": false,
+                "hyperV": false,
+                "siteConfig": {
+                    "appSettings": [],
+                    "linuxFxVersion": "[variables('linuxFxVersion')]",
+                    "alwaysOn": "[variables('alwaysOn')]"
+                },
+                "scmSiteAlsoStopped": false,
+                "clientAffinityEnabled": true,
+                "clientCertEnabled": false,
+                "hostNamesDisabled": false,
+                "containerSize": 0,
+                "dailyMemoryTimeQuota": 0,
+                "httpsOnly": false,
+                "redundancyMode": "None"
+            }
+        },
+        {
+            "type": "Microsoft.Web/sites/config",
+            "apiVersion": "2018-11-01",
+            "name": "[concat(variables('app_name'), '/web')]",
+            "location": "[variables('location')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Web/sites', variables('app_name'))]"
+            ],
+            "properties": {
+                "numberOfWorkers": 1,
+                "defaultDocuments": [
+                    "Default.htm",
+                    "Default.html",
+                    "Default.asp",
+                    "index.htm",
+                    "index.html",
+                    "iisstart.htm",
+                    "default.aspx",
+                    "index.php",
+                    "hostingstart.html"
+                ],
+                "netFrameworkVersion": "v4.0",
+                "nodeVersion": "12.13.0",
+                "requestTracingEnabled": false,
+                "remoteDebuggingEnabled": false,
+                "httpLoggingEnabled": false,
+                "logsDirectorySizeLimit": 35,
+                "detailedErrorLoggingEnabled": false,
+                "publishingUsername": "$cjg-pgdb",
+                "azureStorageAccounts": {},
+                "scmType": "None",
+                "use32BitWorkerProcess": true,
+                "webSocketsEnabled": false,
+                "alwaysOn": true,
+                "managedPipelineMode": "Integrated",
+                "virtualApplications": [
+                    {
+                        "virtualPath": "/",
+                        "physicalPath": "site\\wwwroot",
+                        "preloadEnabled": true
+                    }
+                ],
+                "loadBalancing": "LeastRequests",
+                "experiments": {
+                    "rampUpRules": []
+                },
+                "autoHealEnabled": false,
+                "localMySqlEnabled": false,
+                "ipSecurityRestrictions": [
+                    {
+                        "ipAddress": "Any",
+                        "action": "Allow",
+                        "priority": 1,
+                        "name": "Allow all",
+                        "description": "Allow all access"
+                    }
+                ],
+                "scmIpSecurityRestrictions": [
+                    {
+                        "ipAddress": "Any",
+                        "action": "Allow",
+                        "priority": 1,
+                        "name": "Allow all",
+                        "description": "Allow all access"
+                    }
+                ],
+                "scmIpSecurityRestrictionsUseMain": false,
+                "http20Enabled": false,
+                "minTlsVersion": "1.2",
+                "ftpsState": "AllAllowed",
+                "reservedInstanceCount": 0
+            }
+        },
+        {
+            "type": "Microsoft.Web/sites/hostNameBindings",
+            "apiVersion": "2018-11-01",
+            "name": "[concat(variables('app_name'), '/', variables('app_name'), '.azurewebsites.net')]",
+            "location": "[variables('location')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Web/sites', variables('app_name'))]"
+            ],
+            "properties": {
+                "siteName": "cjg-pgdb",
+                "hostNameType": "Verified"
+            }
+        },
+        {
+            "type": "Microsoft.Network/privateDnsZones/virtualNetworkLinks",
+            "apiVersion": "2018-09-01",
+            "name": "[concat(parameters('prefix'), 'privatedns.com', '/', variables('pg-vnet-db'))]",
+            "location": "global",
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/privateDnsZones', concat(parameters('prefix'), 'privatedns.com'))]",
+                "[resourceId('Microsoft.Network/virtualNetworks', variables('pg-vnet-db'))]"
+            ],
+            "properties": {
+                "registrationEnabled": true,
+                "virtualNetwork": {
+                    "id": "[resourceId('Microsoft.Network/virtualNetworks', variables('pg-vnet-db'))]"
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Network/privateDnsZones/virtualNetworkLinks",
+            "apiVersion": "2018-09-01",
+            "name": "[concat(parameters('prefix'), 'privatedns.com', '/', variables('pg-vnet-hub'))]",
+            "location": "global",
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/privateDnsZones', concat(parameters('prefix'), 'privatedns.com'))]",
+                "[resourceId('Microsoft.Network/virtualNetworks', variables('pg-vnet-hub'))]"
+            ],
+            "properties": {
+                "registrationEnabled": true,
+                "virtualNetwork": {
+                    "id": "[resourceId('Microsoft.Network/virtualNetworks', variables('pg-vnet-hub'))]"
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Network/privateDnsZones/virtualNetworkLinks",
+            "apiVersion": "2018-09-01",
+            "name": "[concat(parameters('prefix'), 'privatedns.com', '/', variables('pg-vnet-app01'))]",
+            "location": "global",
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/privateDnsZones', concat(parameters('prefix'), 'privatedns.com'))]",
+                "[resourceId('Microsoft.Network/virtualNetworks', variables('pg-vnet-app01'))]"
+            ],
+            "properties": {
+                "registrationEnabled": true,
+                "virtualNetwork": {
+                    "id": "[resourceId('Microsoft.Network/virtualNetworks', variables('pg-vnet-app01'))]"
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Network/privateEndpoints",
+            "apiVersion": "2020-05-01",
+            "name": "[concat(variables('api_name'), '-pe')]",
+            "location": "[variables('location')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Web/sites', variables('api_name'))]",
+                "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('pg-vnet-app01'), 'default')]"
+            ],
+            "properties": {
+                "privateLinkServiceConnections": [
+                    {
+                        "name": "[concat(variables('api_name'), '-pe')]",
+                        "properties": {
+                            "privateLinkServiceId": "[resourceId('Microsoft.Web/sites', variables('api_name'))]",
+                            "groupIds": [
+                                "sites"
+                            ]                            
+                        }
+                    }
+                ],
+                "manualPrivateLinkServiceConnections": [],
+                "subnet": {
+                    "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('pg-vnet-app01'), 'default')]"
+                },
+                "customDnsConfigs": [
+                    {
+                        "fqdn": "[concat(variables('api_name'), '.azurewebsites.net')]",
+                        "ipAddresses": [
+                            "10.5.0.4"
+                        ]
+                    },
+                    {
+                        "fqdn": "concat(variables('api_name'), '.scm.azurewebsites.net')",
+                        "ipAddresses": [
+                            "10.5.0.4"
+                        ]
+                    }
+                ]
+            }
+        },
+        {
+            "type": "Microsoft.Network/privateEndpoints",
+            "apiVersion": "2020-05-01",
+            "name": "[concat(variables('app_name'), '-pe')]",
+            "location": "[variables('location')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Web/sites', variables('app_name'))]",
+                "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('pg-vnet-app01'), 'default')]"
+            ],
+            "properties": {
+                "privateLinkServiceConnections": [
+                    {
+                        "name": "[concat(variables('app_name'), '-pe')]",
+                        "properties": {
+                            "privateLinkServiceId": "[resourceId('Microsoft.Web/sites', variables('app_name'))]",
+                            "groupIds": [
+                                "sites"
+                            ]
+                        }
+                    }
+                ],
+                "manualPrivateLinkServiceConnections": [],
+                "subnet": {
+                    "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('pg-vnet-app01'), 'default')]"
+                },
+                "customDnsConfigs": [
+                    {
+                        "fqdn": "[concat(variables('app_name'), '.azurewebsites.net')]",
+                        "ipAddresses": [
+                            "10.6.0.4"
+                        ]
+                    },
+                    {
+                        "fqdn": "concat(variables('app_name'), '.scm.azurewebsites.net')",
+                        "ipAddresses": [
+                            "10.6.0.4"
+                        ]
+                    }
+                ]
+            }
+        },
+        {
+            "type": "Microsoft.Network/privateEndpoints",
+            "apiVersion": "2020-05-01",
+            "name": "[concat(variables('pg_db_single'), '-pe')]",
+            "location": "[variables('location')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.DBforPostgreSQL/servers', variables('pg_db_single'))]",
+                "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('pg-vnet-db'), 'default')]"
+            ],
+            "properties": {
+                "privateLinkServiceConnections": [
+                    {
+                        "name": "[concat(variables('pg_db_single'), '-pe')]",
+                        "properties": {
+                            "privateLinkServiceId": "[resourceId('Microsoft.DBforPostgreSQL/servers', variables('pg_db_single'))]",
+                            "groupIds": [
+                                "postgresqlServer"
+                            ]
+                        }
+                    }
+                ],
+                "manualPrivateLinkServiceConnections": [],
+                "subnet": {
+                    "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('pg-vnet-db'), 'default')]"
+                },
+                "customDnsConfigs": []
+            }
+        },
+        {
+            "type": "Microsoft.Network/privateEndpoints/privateDnsZoneGroups",
+            "apiVersion": "2020-05-01",
+            "name": "[concat(variables('pg_db_single'), '-pe', '/default')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/privateEndpoints', concat(variables('pg_db_single'), '-pe'))]",
+                "[resourceId('Microsoft.Network/privateDnsZones', concat(parameters('prefix'), 'privatedns.com'))]"
+            ],
+            "properties": {
+                "privateDnsZoneConfigs": [
+                    {
+                        "name": "privatelink-pgdb-database-azure-com",
+                        "properties": {
+                            "privateDnsZoneId": "[resourceId('Microsoft.Network/privateDnsZones', concat(parameters('prefix'), 'privatedns.com'))]"
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "type": "Microsoft.KeyVault/vaults",
+            "apiVersion": "2018-02-14",
+            "name": "[variables('vault-name')]",
+            "location": "[variables('location')]",
+            "properties": {
+              "tenantId": "[subscription().tenantId]",
+              "sku": {
+                "name": "standard",
+                "family": "A"
+              },
+              "accessPolicies": []
+            }
+          },
+          {
+            "type": "Microsoft.Compute/virtualMachines",
+            "apiVersion": "2019-07-01",
+            "name": "[variables('vm_db_name')]",
+            "location": "[variables('location')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/networkInterfaces', concat(parameters('prefix'), 'vm-nic'))]",
+                "[resourceId('Microsoft.Storage/StorageAccounts', concat(parameters('prefix'), 'storage'))]"
+            ],
+            "properties": {
+                "hardwareProfile": {
+                    "vmSize": "Standard_D2s_v3"
+                },
+                "storageProfile": {
+                    "imageReference": {
+                        "publisher": "MicrosoftWindowsServer",
+                        "offer": "WindowsServer",
+                        "sku": "2016-Datacenter",
+                        "version": "latest"
+                    },
+                    "osDisk": {
+                        "osType": "Windows",
+                        "name": "[concat(parameters('prefix'), 'vm-disk-osdisk')]",
+                        "createOption": "FromImage",
+                        "caching": "ReadWrite",
+                        "managedDisk": {
+                            "storageAccountType": "Premium_LRS"
+                        },
+                        "diskSizeGB": 127
+                    },
+                    "dataDisks": []
+                },
+                "osProfile": {
+                    "computerName": "[variables('vm_db_name')]",
+                    "adminUsername": "[parameters('administratorLogin')]",
+                    "adminPassword": "[parameters('administratorLoginPassword')]",
+                    "windowsConfiguration": {
+                        "provisionVMAgent": true,
+                        "enableAutomaticUpdates": true
+                    },
+                    "secrets": [],
+                    "allowExtensionOperations": true
+                },
+                "networkProfile": {
+                    "networkInterfaces": [
+                        {
+                            "id": "[resourceId('Microsoft.Network/networkInterfaces', concat(parameters('prefix'), 'vm-nic'))]"
+                        }
+                    ]
+                },
+                "diagnosticsProfile": {
+                    "bootDiagnostics": {
+                        "enabled": true,
+                        "storageUri": "[concat('https://', parameters('prefix'), 'storage.blob.core.windows.net/')]"
+                    }
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Network/networkInterfaces",
+            "apiVersion": "2020-05-01",
+            "name": "[concat(parameters('prefix'), 'vm-nic')]",
+            "location": "[variables('location')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/publicIPAddresses', concat(parameters('prefix'), 'vm-db-ip'))]",
+                "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('pg-vnet-hub'), 'default')]"
+            ],
+            "properties": {
+                "ipConfigurations": [
+                    {
+                        "name": "ipconfig1",
+                        "properties": {
+                            "privateIPAddress": "10.5.0.4",
+                            "privateIPAllocationMethod": "Dynamic",
+                            "publicIPAddress": {
+                                "id": "[resourceId('Microsoft.Network/publicIPAddresses', concat(parameters('prefix'), 'vm-db-ip'))]"
+                            },
+                            "subnet": {
+                                "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('pg-vnet-hub'), 'default')]"
+                            },
+                            "primary": true,
+                            "privateIPAddressVersion": "IPv4"
+                        }
+                    }
+                ],
+                "dnsSettings": {
+                    "dnsServers": []
+                },
+                "enableAcceleratedNetworking": false,
+                "enableIPForwarding": false,
+                "networkSecurityGroup": {
+                    "id": "[resourceId('Microsoft.Network/networkSecurityGroups', concat(parameters('prefix'), 'vm-db-nsg'))]"
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Network/publicIPAddresses",
+            "apiVersion": "2020-05-01",
+            "name": "[concat(parameters('prefix'), 'vm-db-ip')]",
+            "location": "[variables('location')]",
+            "sku": {
+                "name": "Basic"
+            },
+            "properties": {
+                "publicIPAddressVersion": "IPv4",
+                "publicIPAllocationMethod": "Dynamic",
+                "idleTimeoutInMinutes": 4,
+                "ipTags": []
+            }
+        },
+        {
+            "type": "Microsoft.Network/publicIPAddresses",
+            "apiVersion": "2020-05-01",
+            "name": "[concat(parameters('prefix'), 'gw-ip')]",
+            "location": "[variables('location')]",
+            "sku": {
+                "name": "Standard"
+            },
+            "properties": {
+                "publicIPAddressVersion": "IPv4",
+                "publicIPAllocationMethod": "Static",
+                "idleTimeoutInMinutes": 4,
+                "ipTags": []
+            }
+        },
+        {
+            "type": "Microsoft.Network/networkSecurityGroups",
+            "apiVersion": "2020-05-01",
+            "name": "[concat(parameters('prefix'), 'vm-db-nsg')]",
+            "location": "[variables('location')]",
+            "properties": {
+                "securityRules": [
+                    {
+                        "name": "RDP",
+                        "properties": {
+                            "protocol": "TCP",
+                            "sourcePortRange": "*",
+                            "destinationPortRange": "3389",
+                            "sourceAddressPrefix": "*",
+                            "destinationAddressPrefix": "*",
+                            "access": "Allow",
+                            "priority": 300,
+                            "direction": "Inbound",
+                            "sourcePortRanges": [],
+                            "destinationPortRanges": [],
+                            "sourceAddressPrefixes": [],
+                            "destinationAddressPrefixes": []
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts",
+            "apiVersion": "2019-06-01",
+            "name": "[concat(parameters('prefix'), 'storage')]",
+            "location": "[variables('location')]",
+            "sku": {
+                "name": "Standard_LRS",
+                "tier": "Standard"
+            },
+            "kind": "Storage",
+            "properties": {
+                "networkAcls": {
+                    "bypass": "AzureServices",
+                    "virtualNetworkRules": [],
+                    "ipRules": [],
+                    "defaultAction": "Allow"
+                },
+                "supportsHttpsTrafficOnly": true,
+                "encryption": {
+                    "services": {
+                        "file": {
+                            "keyType": "Account",
+                            "enabled": true
+                        },
+                        "blob": {
+                            "keyType": "Account",
+                            "enabled": true
+                        }
+                    },
+                    "keySource": "Microsoft.Storage"
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Network/applicationGateways",
+            "apiVersion": "2020-05-01",
+            "name": "[concat(parameters('prefix'), '-appgw')]",
+            "location": "[variables('location')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('pg-vnet-hub'), 'appGateway')]",
+                "[resourceId('Microsoft.Network/publicIPAddresses', concat(parameters('prefix'), 'gw-ip'))]"
+            ],
+            "properties": {
+                "sku": {
+                    "name": "Standard_v2",
+                    "tier": "Standard_v2"
+                },
+                "gatewayIPConfigurations": [
+                    {
+                        "name": "appGatewayIpConfig",
+                        "properties": {
+                            "subnet": {
+                                "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('pg-vnet-hub'), 'appGateway')]"
+                            }
+                        }
+                    }
+                ],
+                "sslCertificates": [],
+                "trustedRootCertificates": [],
+                "frontendIPConfigurations": [
+                    {
+                        "name": "appGwPublicFrontendIp",
+                        "properties": {
+                            "privateIPAllocationMethod": "Dynamic",
+                            "publicIPAddress": {
+                                "id": "[resourceId('Microsoft.Network/publicIPAddresses', concat(parameters('prefix'), 'gw-ip'))]"
+                            }
+                        }
+                    }
+                ],
+                "frontendPorts": [
+                    {
+                        "name": "port_80",
+                        "properties": {
+                            "port": 80
+                        }
+                    },
+                    {
+                        "name": "port_8080",
+                        "properties": {
+                            "port": 8080
+                        }
+                    }
+                ],
+                "backendAddressPools": [
+                    {
+                        "name": "[concat(parameters('prefix'), '-bep-web')]",
+                        "properties": {
+                            "backendAddresses": [
+                                {
+                                    "ipAddress": "10.6.0.4"
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "name": "[concat(parameters('prefix'), '-bep-api')]",
+                        "properties": {
+                            "backendAddresses": [
+                                {
+                                    "ipAddress": "10.6.0.5"
+                                }
+                            ]
+                        }
+                    }
+                ],
+                "backendHttpSettingsCollection": [
+                    {
+                        "name": "httpSettings",
+                        "properties": {
+                            "port": 80,
+                            "protocol": "Http",
+                            "cookieBasedAffinity": "Disabled",
+                            "hostName": "[concat(parameters('prefix'), 'app01.azurewebsites.net')]",
+                            "pickHostNameFromBackendAddress": false,
+                            "affinityCookieName": "ApplicationGatewayAffinity",
+                            "requestTimeout": 20,
+                            "probe": {
+                                "id": "[concat(resourceId('Microsoft.Network/applicationGateways', concat(parameters('prefix'), '-appgw')), '/probes/web01')]"
+                            }
+                        }
+                    },
+                    {
+                        "name": "apiSettings",
+                        "properties": {
+                            "port": 80,
+                            "protocol": "Http",
+                            "cookieBasedAffinity": "Disabled",
+                            "hostName": "[concat(parameters('prefix'), 'api01.azurewebsites.net')]",
+                            "pickHostNameFromBackendAddress": false,
+                            "requestTimeout": 20,
+                            "probe": {
+                                "id": "[concat(resourceId('Microsoft.Network/applicationGateways', concat(parameters('prefix'), '-appgw')), '/probes/api01')]"
+                            }
+                        }
+                    }
+                ],
+                "httpListeners": [
+                    {
+                        "name": "web",
+                        "properties": {
+                            "frontendIPConfiguration": {
+                                "id": "[concat(resourceId('Microsoft.Network/applicationGateways', concat(parameters('prefix'), '-appgw')), '/frontendIPConfigurations/appGwPublicFrontendIp')]"
+                            },
+                            "frontendPort": {
+                                "id": "[concat(resourceId('Microsoft.Network/applicationGateways', concat(parameters('prefix'), '-appgw')), '/frontendPorts/port_80')]"
+                            },
+                            "protocol": "Http",
+                            "hostNames": [],
+                            "requireServerNameIndication": false
+                        }
+                    },
+                    {
+                        "name": "api",
+                        "properties": {
+                            "frontendIPConfiguration": {
+                                "id": "[concat(resourceId('Microsoft.Network/applicationGateways', concat(parameters('prefix'), '-appgw')), '/frontendIPConfigurations/appGwPublicFrontendIp')]"
+                            },
+                            "frontendPort": {
+                                "id": "[concat(resourceId('Microsoft.Network/applicationGateways', concat(parameters('prefix'), '-appgw')), '/frontendPorts/port_8080')]"
+                            },
+                            "protocol": "Http",
+                            "hostNames": [],
+                            "requireServerNameIndication": false
+                        }
+                    }
+                ],
+                "urlPathMaps": [],
+                "requestRoutingRules": [
+                    {
+                        "name": "web",
+                        "properties": {
+                            "ruleType": "Basic",
+                            "httpListener": {
+                                "id": "[concat(resourceId('Microsoft.Network/applicationGateways', concat(parameters('prefix'), '-appgw')), '/httpListeners/web')]"
+                            },
+                            "backendAddressPool": {
+                                "id": "[concat(resourceId('Microsoft.Network/applicationGateways', concat(parameters('prefix'), '-appgw')), '/backendAddressPools/', parameters('prefix'), '-bep-web')]"
+                            },
+                            "backendHttpSettings": {
+                                "id": "[concat(resourceId('Microsoft.Network/applicationGateways', concat(parameters('prefix'), '-appgw')), '/backendHttpSettingsCollection/httpSettings')]"
+                            }
+                        }
+                    },
+                    {
+                        "name": "api",
+                        "properties": {
+                            "ruleType": "Basic",
+                            "httpListener": {
+                                "id": "[concat(resourceId('Microsoft.Network/applicationGateways', concat(parameters('prefix'), '-appgw')), '/httpListeners/api')]"
+                            },
+                            "backendAddressPool": {
+                                "id": "[concat(resourceId('Microsoft.Network/applicationGateways', concat(parameters('prefix'), '-appgw')), '/backendAddressPools/', parameters('prefix'), '-bep-api')]"
+                            },
+                            "backendHttpSettings": {
+                                "id": "[concat(resourceId('Microsoft.Network/applicationGateways', concat(parameters('prefix'), '-appgw')), '/backendHttpSettingsCollection/apiSettings')]"
+                            }
+                        }
+                    }
+                ],
+                "probes": [
+                    {
+                        "name": "web01",
+                        "properties": {
+                            "protocol": "Http",
+                            "path": "/",
+                            "interval": 30,
+                            "timeout": 30,
+                            "unhealthyThreshold": 3,
+                            "pickHostNameFromBackendHttpSettings": true,
+                            "minServers": 0,
+                            "match": {
+                                "statusCodes": [
+                                    "200-399"
+                                ]
+                            }
+                        }
+                    },
+                    {
+                        "name": "api01",
+                        "properties": {
+                            "protocol": "Http",
+                            "path": "/",
+                            "interval": 30,
+                            "timeout": 30,
+                            "unhealthyThreshold": 3,
+                            "pickHostNameFromBackendHttpSettings": true,
+                            "minServers": 0,
+                            "match": {}
+                        }
+                    }
+                ],
+                "rewriteRuleSets": [],
+                "redirectConfigurations": [],
+                "privateLinkConfigurations": [],
+                "enableHttp2": false,
+                "autoscaleConfiguration": {
+                    "minCapacity": 0,
+                    "maxCapacity": 10
+                }
+            }
+        }
+    ]
+}

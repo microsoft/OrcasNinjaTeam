@@ -1,0 +1,18 @@
+{
+    "name": "jdbc-sink",
+    "config": {
+      "connector.class": "io.confluent.connect.jdbc.JdbcSinkConnector",
+      "tasks.max": "1",
+      "topics": "localhost.reg_app.attendees",
+      "dialect.name": "PostgreSqlDatabaseDialect",
+      "connection.url": "jdbc:postgresql://servername.postgres.database.azure.com:5432/reg_app?user=s2admin&password=Seattle123",
+      "transforms": "unwrap",
+      "transforms.unwrap.type": "io.debezium.transforms.ExtractNewRecordState",
+      "transforms.unwrap.drop.tombstones": "false",
+      "auto.create": "true",
+      "insert.mode": "upsert",
+      "pk.fields": "id",
+      "pk.mode": "record_key",
+      "delete.enabled": "true"
+    }
+  }

@@ -1,0 +1,9 @@
+{
+    "name": "cdc-file-sink",
+    "config": {
+        "connector.class": "org.apache.kafka.connect.file.FileStreamSinkConnector",
+        "tasks.max": "1",
+        "topics": "localhost.reg_app.attendees",
+        "file": "c:/temp/postgres.file.txt"
+    }
+}
