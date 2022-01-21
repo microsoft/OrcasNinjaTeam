@@ -14,7 +14,7 @@ This template will deploy the resources like automation account, blob storage, m
 
 Below button can be used to deploy the resources under the desired subscription.
 
-[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2FNaginder%2Fmysqlltr%2Fmain%2Ftemplate%2Ftemplate.json)
+[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fmicrosoft%2FOrcasNinjaTeam%2Fmaster%2Fazure-mysql%2FLongTermRetentionMySQL%2Ftemplate%2Ftemplate.json)
 
 When the deployment is finished, perform the following steps for providing contributor access to the managed identity
 1. Go to the resource group where the template was deployed
