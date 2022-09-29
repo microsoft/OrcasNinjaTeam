@@ -6,9 +6,11 @@ In order to do that, you can use the testing scripts and run some sanity testing
 
 ## Windows Installer
 
-Once you have successfully run the **installora2pg.ps1" and received the output like below, you can start with the test scenarios.
+Once you have successfully run the **installora2pg.ps1** and received the output like below, you can start with the test scenarios.
 
 ```cmd
+...
+...
 2022-09-28 12:05:58.655:INFO:Applying resolution for v23 issue 1445...
 2022-09-28 12:05:58.665:INFO:Resolution for v23 issue 1445 applied.
 2022-09-28 12:05:58.672:INFO:INSTALLATION SUCCESSFUL :)
