@@ -12,7 +12,7 @@
 
 The script needs PowerShell to be installed on the machine. PowerShell is a cross-platform task automation solution made up of a command-line shell, a scripting language, and a configuration management framework. PowerShell runs on Windows, Linux, and macOS.
 
-To install PowerShell on Ubuntu by following the (official Microsoft documentation)[https://learn.microsoft.com/en-us/powershell/scripting/install/install-ubuntu?].
+To install PowerShell on Ubuntu by following the [official Microsoft documentation](https://learn.microsoft.com/en-us/powershell/scripting/install/install-ubuntu).
 
 Use the following shell commands to install PowerShell on the target OS.
 > **NOTE** This only works for supported versions of Ubuntu.
