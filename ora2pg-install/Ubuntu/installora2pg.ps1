@@ -647,24 +647,33 @@ Function Install-Ora2Pg
     }
 }
 
+###################################### Permission Check ######################################
+$edition = $PSVersionTable
+if(-not ($edition.PSEdition -eq "Core" -and $edition.Platform  -eq "Unix" -and $edition.OS.Contains("Ubuntu"))) {
+    Write-Host "ALERT!!!" -ForegroundColor Red
+    Write-Host "Can not run installation script." -ForegroundColor Red
+    Write-Host "This script is targeted for Ubuntu Operating System only" -ForegroundColor Red
+    exit
+}
+
 ###################################### Variable Initialization #################################
 $Global:Logfile = $null
 # environment setting
 $ErrorActionPreference = "Stop"
 $architecture = if($Is32bit) { "32" } else { "64" }
 
+$workspacePath = [System.IO.Path]::GetDirectoryName($MyInvocation.MyCommand.Path)
 $ora2pgInstallPath = [System.IO.Path]::Combine($env:HOME, "opt", "ora2pg")
 if (-not(Test-Path $ora2pgInstallPath)) {
     New-Item -Path $ora2pgInstallPath -ItemType Directory -Force | Out-Null
 }
-
-$orclClientInstallPath = [System.IO.Path]::Combine($env:HOME, "opt", "Oracle")
-if (-not(Test-Path $orclClientInstallPath)) {
-    New-Item -Path $orclClientInstallPath -ItemType Directory -Force | Out-Null
-}
 ###################################### Script Main #################################
+Write-Host "This is an Interactive script and may require your input from time to time." -ForegroundColor Yellow
+Write-Host "Please do not expect the installation to complete if left unattended." -ForegroundColor Yellow
+Write-Host "  "
+
 $timeStamp = [System.DateTime]::Now.ToString("yyyyMMddHHmmss")
-$Global:Logfile = 'installora2pg-' + $timeStamp + '.log'
+$Global:Logfile = Join-Path $workspacePath ('installora2pg-' + $timeStamp + '.log')
 # setting the SSL/TSL versions specifically to avoid system default issues
 [Net.ServicePointManager]::SecurityProtocol = 
   [Net.SecurityProtocolType]::Tls12 -bor `
@@ -675,7 +684,7 @@ try {
     Check-Internet -exitOnFailure | Out-Null
     Install-Prerequisites
     # install Oracle instant client 
-    $oicFolder = Install-OracleClient -downloadFolder "." `
+    $oicFolder = Install-OracleClient -downloadFolder $workspacePath `
                     -architecture $arch
 
     if($oicFolder -eq $null -or -not(Test-Path $oicFolder)){
@@ -685,17 +694,39 @@ try {
     # check and install Perl
     Install-Perl
     # Install Perl libraries for Oracle and Postgresql
-    Install-PerlLib -downloadFolder "." `
+    Install-PerlLib -downloadFolder $workspacePath `
             -libraryName "DBD::Oracle"
-    Install-PerlLib -downloadFolder "." `
+    Install-PerlLib -downloadFolder $workspacePath `
             -libraryName "DBD::Pg"
     
     # Install Ora2Pg tool  
     $ora2pgInstallPath = [System.IO.Path]::Combine($env:HOME, "opt", "ora2pg")      
-    Install-Ora2Pg -downloadFolder "." `
+    Install-Ora2Pg -downloadFolder $workspacePath `
             -installFolder $ora2pgInstallPath
+
+    Write-OutputAndLog "INSTALLATION SUCCESSFUL :)"
+
+    ################ ADS Extension for Oracle Assessment ################
+    for($x=0; $x -lt 2; $x=$x+1) { Write-Host " " }
+    Write-Host "The Database Migration Assessment for Oracle extension" -ForegroundColor Yellow -BackgroundColor DarkBlue
+    Write-Host "The Database Migration Assessment for Oracle extension in Azure Data Studio helps" `
+        "you assess an Oracle workload for migrating to SQL and PostgreSQL. The extension identifies an appropriate" `
+        "Azure SQL and Azure PostgreSQL targets with right-sizing recommendations, and how complex the migration can be."
+    Write-Host "https://learn.microsoft.com/en-us/sql/azure-data-studio/extensions/database-migration-assessment-for-oracle-extension?view=sql-server-ver16"
+    Write-Host " "
+    Write-Host "For configuring the ADS extension to perform code complexity assessment for PostgreSQL target, " `
+        "use the following configuration values:"
+    Write-Host ("Oracle Client Library Path: " + $env:ORACLE_HOME) -ForegroundColor Yellow
+    $o2pfolder = (Get-childitem -Path $ora2pgInstallPath -File -Filter "Makefile.PL" -Recurse | Select -First 1).FullName
+    $o2pfolder = [System.IO.Path]::GetDirectoryName($o2pfolder)
+    Write-Host ("Ora2Pg Installation Path  : " + $o2pfolder) -ForegroundColor Yellow
+    for($x=0; $x -lt 2; $x=$x+1) { Write-Host " " }
+    ################ ADS Extension for Oracle Assessment ################
 }
 catch {
     Write-ErrorAndLog -exception $_.Exception    
     Write-ErrorAndLog "INSTALLATION FAILED :("
+}
+finally {
+    Write-Host ("Log file generated  : " + $Global:Logfile) -ForegroundColor Green
 }

@@ -1145,7 +1145,14 @@ Function Run-PostInstall
 }
 
 ###################################### Permission Check ######################################
-$Global:Logfile = $null
+$edition = $PSVersionTable
+if(-not ($edition.PSEdition -eq "Desktop" -or ($edition.PSEdition -eq "Core" -and $edition.Platform  -eq "Windows"))) {
+    Write-Host "ALERT!!!" -ForegroundColor Red
+    Write-Host "Can not run installation script." -ForegroundColor Red
+    Write-Host "This script is targeted for Windows Operating System only" -ForegroundColor Red
+    exit
+}
+
 $currentPrincipal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
 if(-not $currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
     Write-Host "ALERT!!!" -ForegroundColor Red
@@ -1156,6 +1163,7 @@ if(-not $currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Admi
 }
 ###################################### Variable Initialization #################################
 # environment setting
+$Global:Logfile = $null
 $ErrorActionPreference = "Stop"
 
 $timeStamp = [System.DateTime]::Now.ToString("yyyyMMddHHmmss")
@@ -1246,7 +1254,7 @@ try {
         "Azure SQL and Azure PostgreSQL targets with right-sizing recommendations, and how complex the migration can be."
     Write-Host "https://learn.microsoft.com/en-us/sql/azure-data-studio/extensions/database-migration-assessment-for-oracle-extension?view=sql-server-ver16"
     Write-Host " "
-    Write-Host "For configuring the ADS extension to perform code complexity assessment for PostgreSQL target " + `
+    Write-Host "For configuring the ADS extension to perform code complexity assessment for PostgreSQL target, " `
         "use the following configuration values:"
     Write-Host ("Oracle Client Library Path: " + $env:ORACLE_HOME) -ForegroundColor Yellow
     $o2pfolder = (Get-childitem -Path $ora2pgInstallPath -File -Filter "Makefile.PL" -Recurse | Select -First 1).FullName
@@ -1260,5 +1268,6 @@ catch {
     Write-ErrorAndLog "INSTALLATION FAILED :("
 }
 finally {
+    Write-Host ("Log file generated  : " + $Global:Logfile) -ForegroundColor Green
     Safe-Exit
 }

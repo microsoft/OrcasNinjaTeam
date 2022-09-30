@@ -7,10 +7,11 @@
 
 ## Installer Details
 
-**installora2pg.ps1** PowerShell script can be used for installing _ora2pg_ on windows platform. The script does not have any pre-requisites as long as there is an internet connection available to download the required packages. The script also checks if the components are already installed and does not installs it again if already found. The installation log ```installora2pg-yyyyMMddHHmmss.log``` is created for every run under the workspace folder.
+**installora2pg.ps1** PowerShell script can be used for installing _ora2pg_ on Windows platform. The script does not have any pre-requisites as long as there is an internet connection available to download the required packages. The script also checks if the components are already installed and does not installs it again if already found. The installation log ```installora2pg-yyyyMMddHHmmss.log``` is created for every run under the workspace folder.
 
 The script tries to call the following  urls which should have access from the machine (needs attention incase of corporate internet proxy).
 
+- http://microsoft.com (to check internet access)
 - https://www.oracle.com/database/technologies/instant-client/winx64-64-downloads.html
 - https://www.oracle.com/database/technologies/instant-client/microsoft-windows-32-downloads.html
 - https://download.oracle.com/
@@ -22,7 +23,7 @@ The script tries to call the following  urls which should have access from the m
 - http://strawberryperl.com/download/
 - https://cpan.metacpan.org/authors/id
 - https://github.com/darold/ora2pg/releases
-- https://github.com/darold/ora2pg/archive/refs/tags/v23.1.zip
+- https://github.com/darold/ora2pg/archive/refs/tags/v*.zip
 
 Once the installer is successfully run on one machine, which is connected to the internet, all the required packages are downloaded in the workspace folder. The installer tries to download the latest installer even when the component is already installed. After that, the PowerShell script and the workspace folder can be copied to any other machine which do not have internet connection, to install ora2pg and all its dependencies.
 
@@ -72,11 +73,11 @@ PS C:\...\repoclone> .\installora2pg.ps1 -InstallFolderPath C:\anyfolder\Ora2PgI
 PS C:\...\repoclone> .\installora2pg.ps1 -InstallFolderPath C:\anyfolder\Ora2PgInstall -WorkspaceFolderName C:\anyfolder\@download -Is32bit -DeleteWorkspace
 ```
 
-## Testing
+## Validation
 
 Once the installation is successful, the installer insures that all the required components are available on the machine. It also configures the interdependencies between the components. But in order to check for proper configuration with Oracle InstantClient we need Oracle database connection which is not available in the installer.
 
-For available scenarios, check the [test](test) folder.
+For available scenarios, check the [validation](validation) folder.
 
 ## Uninstall
 

@@ -1,6 +1,6 @@
 ﻿<#
 .SYNOPSIS 
-Ora2Pg Oralce Connection Test
+Ora2Pg Oralce Connection Validation
 
 .DESCRIPTION
 Runs the basic connection test to an Oracle instance through Ora2Pg tool.
@@ -31,7 +31,7 @@ if (-not $OraclePwd) {
     $OraclePwd =[Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($securePwd))
 }
 
-$projectPath = Join-Path ([System.IO.Path]::GetTempPath()) "test-orcl-connection"
+$projectPath = Join-Path ([System.IO.Path]::GetTempPath()) ([System.DateTime]::Now.ToString("yyyyMMddHHmmss"))
 $projectName = "migv1"
 if(Test-Path $projectPath) {
     Remove-Item -Path $projectPath -Force -Recurse | Out-Null
