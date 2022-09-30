@@ -46,7 +46,7 @@ Specify the full path for the workspace folder where the components will be down
 already exists, then it will not be downloaded again.
 
 .PARAMETER Is32bit
-(Optional) Specifies if the machine processor architecture is 64bit or 32bit. If set then it means machine is 32bit.
+(Optional) [switch] Specifies if the machine processor architecture is 64bit or 32bit. If set then it means machine is 32bit.
 Default Value: False
 
 .PARAMETER DeleteWorkspace
@@ -124,7 +124,7 @@ Function Write-ErrorAndLog
         [System.Exception] $message,
         # Exception instance which needs to be logged.
         [Parameter()]
-        [System.Exception] $error
+        [System.Exception] $exception
     )
 
     if($message -ne $null) {
@@ -135,8 +135,8 @@ Function Write-ErrorAndLog
         }
     }
 
-    if($error -ne $null) {
-        $logLine = "{0}:ERROR:{1}" -f (Get-Date).ToString("yyyy-MM-dd HH:mm:ss.fff"), ($error.ToString())
+    if($exception -ne $null) {
+        $logLine = "{0}:ERROR:{1}" -f (Get-Date).ToString("yyyy-MM-dd HH:mm:ss.fff"), ($exception.ToString())
         Write-Host $logLine -ForegroundColor Red
         if($Global:Logfile -ne $null) {
             Add-content "$Global:Logfile" -value $logLine
@@ -242,7 +242,7 @@ Function Validate-Path {
         return $fullPath
     }
     catch{
-        Write-ErrorAndLog -error $_.Exception
+        Write-ErrorAndLog -exception $_.Exception
         throw "Invalid Path: Failed path validation."
     }    
 }
@@ -266,7 +266,7 @@ Function Check-Internet
         $checkResult = Invoke-WebRequest "http://microsoft.com" -ErrorAction SilentlyContinue
     }
     catch {
-        Write-ErrorAndLog -error $_.Exception
+        Write-ErrorAndLog -exception $_.Exception
         $checkResult = $null
     }
 
@@ -594,7 +594,7 @@ Function Install-Perl {
         -arguments @(('INSTALLDIR="{0}"' -f $installFolder))
 }
 
-Function Install-PerlLib()
+Function Install-PerlLib
 {
     Param(
         # Full path where the Perl module folder will be downloaded
@@ -613,7 +613,7 @@ Function Install-PerlLib()
     
     # if path is null or not a valid path then throw exception as Strawberry Perl is not installed properly
     if ([string]::IsNullOrEmpty($installPath) -or (-not (Test-Path $installPath))) {
-        Write-ErrorAndLog -message "Perl Installation: Please ensure that Strawberry Perl install path is updated in the system environment variable PATH."
+        Write-ErrorAndLog "Perl Installation: Please ensure that Strawberry Perl install path is updated in the system environment variable PATH."
 		Write-Host "........Press enter to exit........" -ForegroundColor Yellow
 		$null = Read-Host
         exit
@@ -624,7 +624,7 @@ Function Install-PerlLib()
         Set-Location $downloadFolder
         $libraryFilePrefix = $libraryName.Replace("::", "-")
         # 1. Get the file name of the downloaded module gz from the download folder
-        $gzFilePath = (Get-ChildItem -Path $downloadFolder -Filter "$libraryFilePrefix*" -File | Select FullName).FullName
+        $gzFilePath = (Get-ChildItem -Path $downloadFolder -Filter "$libraryFilePrefix*" -File | Select-Object FullName).FullName
         # 2. Check for internet connection
         if (Check-Internet) {
             # 2.1. Internet available - Backup file if existing and download latest and update the full file name
@@ -645,7 +645,7 @@ Function Install-PerlLib()
             }
         }
 
-        $gzFilePath = (Get-ChildItem -Path $downloadFolder -Filter "$libraryFilePrefix*" -File | Select FullName).FullName
+        $gzFilePath = (Get-ChildItem -Path $downloadFolder -Filter "$libraryFilePrefix*" -File | Select-Object FullName).FullName
         if(-not $gzFilePath) {
             if($tempBackup) {
                 $gzFilePath = Join-Path ($downloadFolder) ([System.IO.Path]::GetFileName($tempBackup))
@@ -655,7 +655,7 @@ Function Install-PerlLib()
                 # We get to this stage when file did not exist earlier and:
                 # a. internet not available and the  also
                 # b. internet available but download failed 
-                Write-ErrorAndLog -message "$libraryName Installation Failed: Please check that you have internet connectivity " + `
+                Write-ErrorAndLog "$libraryName Installation Failed: Please check that you have internet connectivity " + `
                     " or the cache folder has the required installers for the Perl module."
 		        Write-Host "........Press enter to exit........" -ForegroundColor Yellow
 		        $null = Read-Host
@@ -753,16 +753,8 @@ Function Install-OracleClient
     }
 
     # find the path which needs to be updated in the environment variable
-    $checkFile = Get-Childitem -Path $basicModuleInstallPath -File -Include "oci.dll" -Recurse -ErrorAction SilentlyContinue
-    if($checkFile -ne $null) {
-        $oracleInstallFolder = [System.IO.Path]::GetDirectoryName($checkFile.FullName) 
-    }
-    else {
-        Write-ErrorAndLog "Oracle Client installation failed. Please check the above warnings for required actions."
-        Write-Host "........Press enter to exit........" -ForegroundColor Yellow
-		$null = Read-Host
-        exit
-    }
+    # use the basic module install folder as the base
+    $oracleInstallFolder = $basicModuleInstallPath
 
     Write-OutputAndLog "Updating environment variables which may take time."
     Write-OutputAndLog "Updating ORACLE_HOME_ORA2PG environment variable..."
@@ -846,6 +838,7 @@ Function Install-OracleClientModule {
             $modulePackagePath = Join-Path $downloadFolder "$modulePrefix.zip"
             Write-OutputAndLog ("Downloading Oracle Client Module from " + $downloadUrl + "...")
             Invoke-WebRequest -Uri $downloadUrl -OutFile $modulePackagePath
+            Write-OutputAndLog ("Oracle Client Module download complete.")
         }                    
     }
     ################
@@ -855,9 +848,9 @@ Function Install-OracleClientModule {
     $orclHomePath = [System.Environment]::GetEnvironmentVariable('ORACLE_HOME_ORA2PG', [System.EnvironmentVariableTarget]::Machine)
     if($orclHomePath -and (Test-Path -Path $orclHomePath)) {
         # check if desired file or folder is already installed
-        $checkItem = (Get-Childitem -Path $orclHomePath -Include $moduleCheckItemName -Recurse -ErrorAction SilentlyContinue | Select -First 1)
+        $checkItem = (Get-Childitem -Path $orclHomePath -Include $moduleCheckItemName -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1)
         if($checkItem -ne $null) {
-            Write-OutputAndLog "Oracle Client Module item $moduleCheckItemName is already installed at $oracleInstallFolder."
+            Write-OutputAndLog "Oracle Client Module item $moduleCheckItemName is already installed under $orclHomePath."
             return $orclHomePath
         }
     }
@@ -914,7 +907,7 @@ Function Get-OracleClientDownloadUrl{
         return $clientModuleDownloadUrl
     }
     else {
-        Write-ErrorAndLog -message "Unable to find Oracle Instant Client module $modulePrefixName latest download url."
+        Write-ErrorAndLog "Unable to find Oracle Instant Client module $modulePrefixName latest download url."
     }
 }
 
@@ -1152,7 +1145,14 @@ Function Run-PostInstall
 }
 
 ###################################### Permission Check ######################################
-$Global:Logfile = $null
+$edition = $PSVersionTable
+if(-not ($edition.PSEdition -eq "Desktop" -or ($edition.PSEdition -eq "Core" -and $edition.Platform  -eq "Windows"))) {
+    Write-Host "ALERT!!!" -ForegroundColor Red
+    Write-Host "Can not run installation script." -ForegroundColor Red
+    Write-Host "This script is targeted for Windows Operating System only" -ForegroundColor Red
+    exit
+}
+
 $currentPrincipal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
 if(-not $currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
     Write-Host "ALERT!!!" -ForegroundColor Red
@@ -1163,6 +1163,7 @@ if(-not $currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Admi
 }
 ###################################### Variable Initialization #################################
 # environment setting
+$Global:Logfile = $null
 $ErrorActionPreference = "Stop"
 
 $timeStamp = [System.DateTime]::Now.ToString("yyyyMMddHHmmss")
@@ -1196,8 +1197,14 @@ $arch = If ($Is32bit) {"32"} Else {"64"}
 $Global:Logfile = [System.IO.Path]::Combine($fullWorkspaceFolderPath, "installora2pg-$timeStamp.log")
 
 ###################################### Script Main #################################
-
+# acquire lock on the temp file so only one instance of the script can run
 Acquire-Lock
+# setting the SSL/TSL versions specifically to avoid system default issues
+[Net.ServicePointManager]::SecurityProtocol = 
+  [Net.SecurityProtocolType]::Tls12 -bor `
+  [Net.SecurityProtocolType]::Tls11 -bor `
+  [Net.SecurityProtocolType]::Tls
+
 try {
     # Install the Oracle instant client
     $seekFolderPaths = @(".\", $scriptRootPath)
@@ -1247,7 +1254,7 @@ try {
         "Azure SQL and Azure PostgreSQL targets with right-sizing recommendations, and how complex the migration can be."
     Write-Host "https://learn.microsoft.com/en-us/sql/azure-data-studio/extensions/database-migration-assessment-for-oracle-extension?view=sql-server-ver16"
     Write-Host " "
-    Write-Host "For configuring the ADS extension to perform code complexity assessment for PostgreSQL target " + `
+    Write-Host "For configuring the ADS extension to perform code complexity assessment for PostgreSQL target, " `
         "use the following configuration values:"
     Write-Host ("Oracle Client Library Path: " + $env:ORACLE_HOME) -ForegroundColor Yellow
     $o2pfolder = (Get-childitem -Path $ora2pgInstallPath -File -Filter "Makefile.PL" -Recurse | Select -First 1).FullName
@@ -1257,10 +1264,10 @@ try {
     ################ ADS Extension for Oracle Assessment ################
 }
 catch {
-    Write-ErrorAndLog -error $_.Exception
-    
+    Write-ErrorAndLog -exception $_.Exception    
     Write-ErrorAndLog "INSTALLATION FAILED :("
 }
 finally {
+    Write-Host ("Log file generated  : " + $Global:Logfile) -ForegroundColor Green
     Safe-Exit
 }
