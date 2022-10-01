@@ -1,42 +1,35 @@
-# Ora2Pg Client Installer for Ubuntu
+# Ora2Pg Client Installer for RHEL/CentOS
 
 > **IMPORTANT** This is an **Interactive script** and may require your input from time to time. Please do not expect the installation to complete if left unattended.
 
 ## Supported Versions
 
-- Ubuntu 22.04
-- Ubuntu 20.04
-- Ubuntu 18.04
+- RHEL 8
+- RHEL 7
 
 ## Prerequisites
 
 The script needs PowerShell to be installed on the machine. PowerShell is a cross-platform task automation solution made up of a command-line shell, a scripting language, and a configuration management framework. PowerShell runs on Windows, Linux, and macOS.
 
-To install PowerShell on Ubuntu please follow the [official Microsoft documentation](https://learn.microsoft.com/en-us/powershell/scripting/install/install-ubuntu). Below script is copied from the official documentation as of 30th Sep 2022.
+To install PowerShell on RHEL please follow the [official Microsoft documentation](https://learn.microsoft.com/en-us/powershell/scripting/install/install-rhel). Below script is copied from the official documentation as of 30th Sep 2022.
 
 Use the following shell commands to install PowerShell on the target OS.
-> **NOTE** This only works for supported versions of Ubuntu.
+> **NOTE** This only works for supported versions of RHEL.
 
 ```powershell
-# Update the list of packages
-sudo apt-get update
-# Install pre-requisite packages.
-sudo apt-get install -y wget apt-transport-https software-properties-common
-# Download the Microsoft repository GPG keys
-wget -q "https://packages.microsoft.com/config/ubuntu/$(lsb_release -rs)/packages-microsoft-prod.deb"
-# Register the Microsoft repository GPG keys
-sudo dpkg -i packages-microsoft-prod.deb
-# Update the list of packages after we added packages.microsoft.com
-sudo apt-get update
+# Register the Microsoft RedHat repository
+curl https://packages.microsoft.com/config/rhel/7/prod.repo | sudo tee /etc/yum.repos.d/microsoft.repo
+
 # Install PowerShell
-sudo apt-get install -y powershell
+sudo yum install --assumeyes powershell
+
 # Start PowerShell
 pwsh
 ```
 
 ## Installer Details
 
-**installora2pg.ps1** PowerShell script can be used for installing _ora2pg_ on Ubuntu platform. The script checks if a component are already installed and does not installs it again if already found. The installation log ```installora2pg-yyyyMMddHHmmss.log``` is created for every run under the same folder where the script is saved.
+**installora2pg.ps1** PowerShell script can be used for installing _ora2pg_ on RHEL/CentOS platform. The script checks if a component are already installed and does not installs it again if already found. The installation log ```installora2pg-yyyyMMddHHmmss.log``` is created for every run under the same folder where the script is saved.
 
 The script tries to call the following  urls which should have access from the machine (needs attention incase of corporate internet proxy). The installers are downloaded into the workspace folder.
 
@@ -55,7 +48,7 @@ The components installed by the installer are:
 
 - Latest version of Oracle InstantClient, InstantClient SDK and InstantClient SQLPlus
   - If the _oracle-instantclient-basic*.rpm_, _oracle-instantclient-devel*.rpm_ and _oracle-instantclient-sqlplus*.rpm_ are present in the same folder as the script then those rpm files are used and latest version is not downloaded. So if your environment for some reason does not support the latest version of Oracle InstantClient, then download the desired version from Oracle download site ([x64](https://www.oracle.com/database/technologies/instant-client/linux-x86-64-downloads.html) or [x36](https://www.oracle.com/database/technologies/instant-client/linux-x86-32-downloads.html)) and save them in the same folder as the script before running the installer.
-- Ubuntu OS comes with Perl already installed. The script checks and if not found the uses ```apt-get``` to install Perl.
+- RHEL/CentOS comes with Perl already installed. The script checks and if not found the uses ```yum``` to install Perl.
 - Latest version of Perl libraries for Oracle and PostgreSQL using ```CPAN```.
 - Latest version of Ora2Pg. Ora2Pg repo is copied under "$HOME/opt/ora2pg" path.
 

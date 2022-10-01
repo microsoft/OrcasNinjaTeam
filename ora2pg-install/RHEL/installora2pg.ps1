@@ -10,7 +10,7 @@
 
 <#
 .SYNOPSIS 
-Installs ora2pg tool on a Ubuntu machine along with its dependencies.
+Installs ora2pg tool on a CentOS/RHL machine along with its dependencies.
 
 .DESCRIPTION
 The script checks, downloads, checks and installs ora2pg and its dependencies. The different dependencies are downloaded 
@@ -188,17 +188,9 @@ Function Install-Prerequisites {
     None
     #>
     Write-OutputAndLog "Starting pre-requisite check..."
-    Invoke-Expression "sudo apt-get -y install alien dpkg-dev debhelper build-essential" -ErrorAction SilentlyContinue
-    Invoke-Expression "sudo apt-get -y install libaio1" -ErrorAction SilentlyContinue
-    Invoke-Expression "sudo apt-get -y install make" -ErrorAction SilentlyContinue
-    Invoke-Expression "sudo apt-get -y install alien" -ErrorAction SilentlyContinue
-    Invoke-Expression "sudo apt-get -y install rpm" -ErrorAction SilentlyContinue
-    Invoke-Expression "sudo apt-get -y install libpq-dev" -ErrorAction SilentlyContinue
-    Invoke-Expression "sudo apt-get -y install libdbi-perl" -ErrorAction SilentlyContinue
-    Invoke-Expression "sudo apt-get -y install libwww-perl" -ErrorAction SilentlyContinue
-    Invoke-Expression "sudo apt -y install cpanminus"  -ErrorAction SilentlyContinue
-    # other way of installing cpanm
-    # Invoke-Expression "curl -L https://cpanmin.us | perl - --sudo App::cpanminus" -ErrorAction SilentlyContinue 
+    Invoke-Expression "sudo yum -y install perl-devel" -ErrorAction SilentlyContinue
+    Invoke-Expression "sudo yum -y install perl-DBI" -ErrorAction SilentlyContinue
+    Invoke-Expression "sudo yum -y install cpanminus" -ErrorAction SilentlyContinue    
     Write-OutputAndLog "Prerequisite check completed." -ErrorAction SilentlyContinue
 }
 
@@ -323,14 +315,14 @@ Function Install-OracleClientModule {
 	$packagePath = Download-Package -packageName $packageName -url $url -downloadFolder $downloadFolder
 	
 	# check existing installation and if needed install the package
-	$pkgListing = Invoke-Expression "sudo dpkg -l | grep '$packageKey'"
+	$pkgListing = Invoke-Expression "sudo yum list installed | grep '$packageKey'"
 	if ($pkgListing -eq $null) {
 		# install the package	
 		Write-OutputAndLog "Package $packageKey not found so initiating installation..."	
-		Invoke-Expression "sudo alien -i $packagePath" | Out-Null
+		Invoke-Expression "sudo yum -y installlocal $packagePath --nogpgcheck" | Out-Null
         
         # check the install for success
-        $pkgListing = Invoke-Expression "sudo dpkg -l | grep '$packageKey'" -ErrorAction SilentlyContinue
+        $pkgListing = Invoke-Expression "sudo yum list installed | grep '$packageKey'" -ErrorAction SilentlyContinue
         if($pkgListing -eq $null) {
             throw "Installation failed for Oracle InstantClient module $modulePrefix"
         }
@@ -375,7 +367,7 @@ Function Install-OracleClient
         -packageKey "oracle-instantclient-sqlplus" `
         -architecture $architecture
 
-    $pkgFileListing = Invoke-Expression "sudo dpkg -L 'oracle-instantclient-basic'" -ErrorAction SilentlyContinue
+    $pkgFileListing = Invoke-Expression "sudo rpm -ql 'oracle-instantclient-basic'" -ErrorAction SilentlyContinue
     if($pkgFileListing -eq $null) { throw "Oracle InstantClient installation failed. Basic client files not available." }
     $checkFile = $pkgFileListing | Where-Object { $_ -like "*libociei.so" } | Select-Object -First 1
     if($checkFile -eq $null) { throw "Oracle InstantClient installation failed. Check file not available." }
@@ -394,7 +386,8 @@ Function Install-OracleClient
     Write-Host $env:LD_LIBRARY_PATH
 
     # setting the environment variable - PATH
-    $updatedPath = Update-EnvironmentPath -variableName "PATH" -newPath $orclHomePath
+    $pathToUpdate = $orclHomePath + ":" + "$orclHomePath/bin"
+    $updatedPath = Update-EnvironmentPath -variableName "PATH" -newPath $pathToUpdate
     $env:PATH = $updatedPath
     Write-Host $env:PATH
 
@@ -415,8 +408,8 @@ Function Install-Perl {
     if($perlVersion -eq $null) { 
         Write-WarningAndLog "Perl installation not detected on the system."
         Write-OutputAndLog "Starting Perl installation..."
-        Invoke-Expression "sudo apt-get -y update"
-        Invoke-Expression "sudo apt-get -y install perl"
+        Invoke-Expression "sudo yum -y update"
+        Invoke-Expression "sudo yum -y install perl"
         
         $perlVersion = Invoke-Expression "perl --version" -ErrorAction SilentlyContinue
         if($perlVersion -eq $null) { throw "Perl installation failed." }

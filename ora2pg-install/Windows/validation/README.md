@@ -29,7 +29,7 @@ The output of the above script looks like this
 ```cmd
 Enter Oracle database password:: *********
 Creating target directory...
-Initializing Ora2Pg project migv1 at C:\Users\xxxx\AppData\Local\Temp\test-orcl-connection
+Initializing Ora2Pg project migv1 at C:\Users\xxxx\AppData\Local\Temp\20220423153258
 Creating project migv1.
 Project initialization successful
 Expression output: Oracle Database 12c Enterprise Edition Release 12.2.0.1.0
