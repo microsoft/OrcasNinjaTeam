@@ -21,7 +21,7 @@ Once you have successfully run the **installora2pg.ps1** and received the output
 To check for proper configuration with Oracle InstantClient we need Oracle database connection which is not available in the installer. So in-order to test the Oracle connectivity you can use the ```validate-orcl-connection.ps1``` in the validation folder to check the basic connectivity. The below example runs the test script against an Oracle 12c database and asserts an expected result on the output.
 
 ```powershell
-PS $HOME/user/repoclone> ./validation/validate-orcl-connection.ps1 -OracleDNS "dbi:Oracle:host=X.X.X.X;sid=orcl;port=1521" -OracleUser "system" -ExpectedResult "12c Enterprise Edition Release 12.2.0.1.0"
+PS $HOME/user/repoclone> ./validation/validate-orcl-connection.ps1 -OracleDNS "dbi:Oracle:host=X.X.X.X;sid=orcl;port=1521" -OracleUser "system" -OraclePwd "<FILL THIS>" -ExpectedResult "12c Enterprise Edition Release 12.2.0.1.0"
 ```
 
 The output of the above script looks like this

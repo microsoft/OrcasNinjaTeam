@@ -404,7 +404,7 @@ Function Install-OracleClient
 Function Install-Perl {
     <#
     .DESCRIPTION
-    Installs latest version of Strawberry Perl and then verifies the installation.
+    Installs latest version of Perl and then verifies the installation.
     Ubuntu comes with the default installation of Perl and script only checks the version.
 
     .OUTPUTS
@@ -428,6 +428,13 @@ Function Install-Perl {
 
 Function Install-PerlLib()
 {
+    <#
+    .DESCRIPTION
+    Installs latest version of Perl library and then verifies the installation.
+
+    .OUTPUTS
+    None.
+    #>
     Param(
         # Full path where the Perl module folder will be downloaded
         [Parameter(Mandatory)]
@@ -501,28 +508,49 @@ Function Install-PerlLib()
         }
         
         # Install the module from the download folder - cpanm 
-        Write-OutputAndLog "Installing latest available $libraryName library from $gzFilePath..."
         if ($env:ORACLE_HOME -eq $null -or -not (Test-Path $env:ORACLE_HOME)) { Write-WarningAndLog "ORACLE_HOME not set to a valid value" }
         if ($env:LD_LIBRARY_PATH -eq $null -or -not $env:LD_LIBRARY_PATH.Contains($env:ORACLE_HOME)) { Write-WarningAndLog "LD_LIBRARY_PATH not point to ORACLE_HOME" }
+        
+        Write-OutputAndLog ("ORACLE_HOME=" + $env:ORACLE_HOME)
+        Write-OutputAndLog ("LD_LIBRARY_PATH=" + $env:LD_LIBRARY_PATH)        
+        Write-OutputAndLog "Installing latest available $libraryName library using CPANM from $gzFilePath..."        
         try {
-            Invoke-Expression "sudo cpanm --notest --force $gzFilePath" -ErrorAction SilentlyContinue
+            Invoke-Expression "sudo cpanm --notest $libraryName" -ErrorAction SilentlyContinue
         } catch {
-            $logMessage = "cpan $libraryName - " + $_.Exception.Message
+            # not throwing exception as there are some times warnings which we do not know
+            # how to handle deterministically
+            $logMessage = "$libraryName installation failed - " + $_.Exception.Message            
             Write-WarningAndLog $logMessage
-
-            try {
-                Write-OutputAndLog "Retrying installation of $libraryName library with force..."
-                Invoke-Expression "sudo cpanm --notest --force $gzFilePath" -ErrorAction SilentlyContinue
-            }
-            catch {
-                $logMessage = "cpan $libraryName - " + $_.Exception.Message
-                Write-WarningAndLog $logMessage
-            }
         }
     }
     finally {
         Set-Location $currentLocation
     }
+
+    # check for the success of installation
+    Check-PerlLibInstallation -libraryName $libraryName
+}
+
+Function Check-PerlLibInstallation {
+    <#
+    .DESCRIPTION
+    Verifies the installation of a Perl library.
+
+    .OUTPUTS
+    None.
+    #>
+    Param(
+        # Name of the Perl library to be installed
+        [Parameter(Mandatory)]
+        [string] $libraryName      
+    )
+    # check for the success of DBD::Pg module
+    Write-OutputAndLog "Checking Perl library $libraryName installation..."
+    $installedLib = Invoke-Expression "cpan -l | grep -sw '^$libraryName' | grep -v '^$libraryName::'" -ErrorAction SilentlyContinue
+    if($installedLib -eq $null) {
+        throw "Perl library $libraryName installation failed."
+    }
+    Write-OutputAndLog "Perl library $libraryName installation successful."
 }
 
 Function Install-Ora2Pg

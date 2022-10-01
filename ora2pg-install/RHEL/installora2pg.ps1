@@ -189,8 +189,11 @@ Function Install-Prerequisites {
     #>
     Write-OutputAndLog "Starting pre-requisite check..."
     Invoke-Expression "sudo yum -y install perl-devel" -ErrorAction SilentlyContinue
-    Invoke-Expression "sudo yum -y install perl-DBI" -ErrorAction SilentlyContinue
-    Invoke-Expression "sudo yum -y install cpanminus" -ErrorAction SilentlyContinue    
+    Invoke-Expression "sudo yum -y install perl-libwww-perl" -ErrorAction SilentlyContinue
+    Invoke-Expression "sudo yum -y install libaio" -ErrorAction SilentlyContinue
+    Invoke-Expression "sudo yum -y install cpanminus" -ErrorAction SilentlyContinue 
+    Invoke-Expression "sudo yum -y install perl-DBI" -ErrorAction SilentlyContinue 
+    Invoke-Expression "sudo yum -y install perl-DBD-Pg" -ErrorAction SilentlyContinue       
     Write-OutputAndLog "Prerequisite check completed." -ErrorAction SilentlyContinue
 }
 
@@ -397,7 +400,7 @@ Function Install-OracleClient
 Function Install-Perl {
     <#
     .DESCRIPTION
-    Installs latest version of Strawberry Perl and then verifies the installation.
+    Installs latest version of Perl and then verifies the installation.
     Ubuntu comes with the default installation of Perl and script only checks the version.
 
     .OUTPUTS
@@ -419,8 +422,15 @@ Function Install-Perl {
     else { Write-OutputAndLog "Perl installation detected - $perlVersion" }
 }
 
-Function Install-PerlLib()
+Function Install-PerlLib
 {
+    <#
+    .DESCRIPTION
+    Installs latest version of Perl library and then verifies the installation.
+
+    .OUTPUTS
+    None.
+    #>
     Param(
         # Full path where the Perl module folder will be downloaded
         [Parameter(Mandatory)]
@@ -442,80 +452,47 @@ Function Install-PerlLib()
         exit
     }
 
-    $currentLocation = Get-Location
+    # Install the module from the download folder - cpanm 
+    if ($env:ORACLE_HOME -eq $null -or -not (Test-Path $env:ORACLE_HOME)) { Write-WarningAndLog "ORACLE_HOME not set to a valid value" }
+    if ($env:LD_LIBRARY_PATH -eq $null -or -not $env:LD_LIBRARY_PATH.Contains($env:ORACLE_HOME)) { Write-WarningAndLog "LD_LIBRARY_PATH not point to ORACLE_HOME" }
+    
+    Write-OutputAndLog ("ORACLE_HOME=" + $env:ORACLE_HOME)
+    Write-OutputAndLog ("LD_LIBRARY_PATH=" + $env:LD_LIBRARY_PATH)
+    Write-OutputAndLog "Installing latest available $libraryName library using CPAN..."    
     try {
-        Set-Location $downloadFolder
-        $libraryFilePrefix = $libraryName.Replace("::", "-")
-        # 1. Get the file name of the downloaded module gz from the download folder
-        $gzFilePath = (Get-ChildItem -Path $downloadFolder -Filter "$libraryFilePrefix*" -File | Select-Object FullName).FullName
-        # 2. Check for internet connection
-        if (Check-Internet) {
-            # 2.1. Internet available - Backup file if existing and download latest and update the full file name
-            # if download fails then revert back to the already backup file
-            if($gzFilePath) { 
-                $tempBackup = Join-Path ([System.IO.Path]::GetTempPath()) ([System.IO.Path]::GetFileName($gzFilePath))
-                Write-OutputAndLog "Backup the cached install package $gzFilePath"
-                Move-Item -Path $gzFilePath -Destination $tempBackup -Force | Out-Null
-            }
-            try {
-                Write-OutputAndLog "Downloading the latest $libraryName package..."
-                Invoke-Expression "cpan -g $libraryName" -ErrorAction SilentlyContinue
-            }
-            catch {
-                # there may be warnings but we do not know how to deal with them correctly
-                $logMessage = "cpan $libraryName - " + $_.Exception.Message
-                Write-WarningAndLog $logMessage                
-            }
-        }
-
-        $gzFilePath = (Get-ChildItem -Path $downloadFolder -Filter "$libraryFilePrefix*" -File | Select-Object FullName).FullName
-        if(-not $gzFilePath) {
-            if($tempBackup) {
-                $gzFilePath = Join-Path ($downloadFolder) ([System.IO.Path]::GetFileName($tempBackup))
-                Move-Item -Path $tempBackup -Destination $gzFilePath -Force | Out-Null
-            } 
-            else {
-                # We get to this stage when file did not exist earlier and:
-                # a. internet not available and the  also
-                # b. internet available but download failed 
-                Write-ErrorAndLog "$libraryName Installation Failed: Please check that you have internet connectivity " + `
-                    " or the cache folder has the required installers for the Perl module."
-		        Write-Host "........Press enter to exit........" -ForegroundColor Yellow
-		        $null = Read-Host
-                exit
-            }
-        }
-        else {
-            # new file is downloaded so delete the backup if there
-            if($tempBackup) {
-                Write-OutputAndLog "Removing backup install package from $tempBackup..."
-                Remove-Item -Path $tempBackup -Force | Out-Null
-            } 
-        }
-        
-        # Install the module from the download folder - cpanm 
-        Write-OutputAndLog "Installing latest available $libraryName library from $gzFilePath..."
-        if ($env:ORACLE_HOME -eq $null -or -not (Test-Path $env:ORACLE_HOME)) { Write-WarningAndLog "ORACLE_HOME not set to a valid value" }
-        if ($env:LD_LIBRARY_PATH -eq $null -or -not $env:LD_LIBRARY_PATH.Contains($env:ORACLE_HOME)) { Write-WarningAndLog "LD_LIBRARY_PATH not point to ORACLE_HOME" }
-        try {
-            Invoke-Expression "sudo cpanm --notest --force $gzFilePath" -ErrorAction SilentlyContinue
-        } catch {
-            $logMessage = "cpan $libraryName - " + $_.Exception.Message
-            Write-WarningAndLog $logMessage
-
-            try {
-                Write-OutputAndLog "Retrying installation of $libraryName library with force..."
-                Invoke-Expression "sudo cpanm --notest --force $gzFilePath" -ErrorAction SilentlyContinue
-            }
-            catch {
-                $logMessage = "cpan $libraryName - " + $_.Exception.Message
-                Write-WarningAndLog $logMessage
-            }
-        }
+        Invoke-Expression "sudo cpanm --notest $libraryName" -ErrorAction SilentlyContinue
     }
-    finally {
-        Set-Location $currentLocation
+    catch {
+        # not throwing exception as there are some times warnings which we do not know
+        # how to handle deterministically
+        $logMessage = "$libraryName installation failed - " + $_.Exception.Message            
+        Write-WarningAndLog $logMessage
     }
+
+    # check for the success of installation
+    Check-PerlLibInstallation -libraryName $libraryName
+}
+
+Function Check-PerlLibInstallation {
+    <#
+    .DESCRIPTION
+    Verifies the installation of a Perl library.
+
+    .OUTPUTS
+    None.
+    #>
+    Param(
+        # Name of the Perl library to be installed
+        [Parameter(Mandatory)]
+        [string] $libraryName      
+    )
+    # check for the success of DBD::Pg module
+    Write-OutputAndLog "Checking Perl library $libraryName installation..."
+    $installedLib = Invoke-Expression "cpan -l | grep -sw '^$libraryName' | grep -v '^$libraryName::'" -ErrorAction SilentlyContinue
+    if($installedLib -eq $null) {
+        throw "Perl library $libraryName installation failed."
+    }
+    Write-OutputAndLog "Perl library $libraryName installation successful."
 }
 
 Function Install-Ora2Pg
@@ -585,7 +562,6 @@ Function Install-Ora2Pg
     if ($env:ORACLE_HOME -eq $null -or -not (Test-Path $env:ORACLE_HOME)) { throw "ORACLE_HOME not set to a valid value" }
     if ($env:LD_LIBRARY_PATH -eq $null -or -not $env:LD_LIBRARY_PATH.Contains($env:ORACLE_HOME)) { throw "LD_LIBRARY_PATH not point to ORACLE_HOME" }
     
-
     if(-not $ora2pgCodePath){
         Write-OutputAndLog "Extracting Ora2Pg code files to $installFolder."
         # extract the ora2pg code to the install folder
@@ -641,10 +617,13 @@ Function Install-Ora2Pg
 
 ###################################### Permission Check ######################################
 $edition = $PSVersionTable
-if(-not ($edition.PSEdition -eq "Core" -and $edition.Platform  -eq "Unix" -and $edition.OS.Contains("Ubuntu"))) {
+if(-not ($edition.PSEdition -eq "Core" `
+    -and $edition.Platform -eq "Unix" `
+    -and $edition.OS.Contains("Linux")`
+    -and !$edition.OS.Contains("Ubuntu"))) {
     Write-Host "ALERT!!!" -ForegroundColor Red
     Write-Host "Can not run installation script." -ForegroundColor Red
-    Write-Host "This script is targeted for Ubuntu Operating System only" -ForegroundColor Red
+    Write-Host "This script is targeted for RHEL/CentOS Operating System only" -ForegroundColor Red
     exit
 }
 
@@ -688,8 +667,8 @@ try {
     # Install Perl libraries for Oracle and Postgresql
     Install-PerlLib -downloadFolder $workspacePath `
             -libraryName "DBD::Oracle"
-    Install-PerlLib -downloadFolder $workspacePath `
-            -libraryName "DBD::Pg"
+    # check for the success of DBD::Pg module
+    Check-PerlLibInstallation -libraryName "DBD::Pg"
     
     # Install Ora2Pg tool  
     $ora2pgInstallPath = [System.IO.Path]::Combine($env:HOME, "opt", "ora2pg")      
