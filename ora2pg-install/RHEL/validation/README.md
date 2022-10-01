@@ -4,7 +4,7 @@ Once the installation is successful, the installer insures that all the required
 
 In order to do that, you can use the testing scripts and run some sanity testing before starting on your Oracle to PostgreSQL journey.
 
-## Ubuntu Installer
+## RHEL/CentOS Installer
 
 Once you have successfully run the **installora2pg.ps1** and received the output like below, you can start with the test scenarios.
 
