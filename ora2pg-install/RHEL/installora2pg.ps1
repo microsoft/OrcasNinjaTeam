@@ -685,12 +685,12 @@ try {
         "Azure SQL and Azure PostgreSQL targets with right-sizing recommendations, and how complex the migration can be."
     Write-Host "https://learn.microsoft.com/en-us/sql/azure-data-studio/extensions/database-migration-assessment-for-oracle-extension?view=sql-server-ver16"
     Write-Host " "
-    Write-Host "For configuring the ADS extension to perform code complexity assessment for PostgreSQL target, " `
+    Write-OutputAndLog "For configuring the ADS extension to perform code complexity assessment for PostgreSQL target, " `
         "use the following configuration values:"
-    Write-Host ("Oracle Client Library Path: " + $env:ORACLE_HOME) -ForegroundColor Yellow
+    Write-OutputAndLog ("Oracle Client Library Path: " + $env:ORACLE_HOME)
     $o2pfolder = (Get-childitem -Path $ora2pgInstallPath -File -Filter "Makefile.PL" -Recurse | Select -First 1).FullName
     $o2pfolder = [System.IO.Path]::GetDirectoryName($o2pfolder)
-    Write-Host ("Ora2Pg Installation Path  : " + $o2pfolder) -ForegroundColor Yellow
+    Write-OutputAndLog ("Ora2Pg Installation Path  : " + $o2pfolder)
     for($x=0; $x -lt 2; $x=$x+1) { Write-Host " " }
     ################ ADS Extension for Oracle Assessment ################
 }
