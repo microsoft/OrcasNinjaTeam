@@ -1254,12 +1254,21 @@ try {
         "Azure SQL and Azure PostgreSQL targets with right-sizing recommendations, and how complex the migration can be."
     Write-Host "https://learn.microsoft.com/en-us/sql/azure-data-studio/extensions/database-migration-assessment-for-oracle-extension?view=sql-server-ver16"
     Write-Host " "
-    Write-OutputAndLog "For configuring the ADS extension to perform code complexity assessment for PostgreSQL target, " `
-        "use the following configuration values:"
-    Write-OutputAndLog ("Oracle Client Library Path: " + $env:ORACLE_HOME)
-    $o2pfolder = (Get-childitem -Path $ora2pgInstallPath -File -Filter "Makefile.PL" -Recurse | Select -First 1).FullName
+    
+    $titleText = "For configuring the ADS extension to perform code complexity assessment for PostgreSQL target, use the following configuration values:"
+    $o2pfolder = (Get-childitem -Path $ora2pgInstallPath -File -Filter "Makefile.PL" -Recurse | Select-Object -First 1).FullName
     $o2pfolder = [System.IO.Path]::GetDirectoryName($o2pfolder)
-    Write-OutputAndLog ("Ora2Pg Installation Path  : " + $o2pfolder)
+    $o2pfolderText = ("Ora2Pg Installation Path  : " + $o2pfolder)
+    $oracleHomeText = ("Oracle Client Library Path: " + $env:ORACLE_HOME)
+
+    Write-Host $titleText
+    Write-Host $oracleHomeText -ForegroundColor Yellow
+    Write-Host $o2pfolderText -ForegroundColor Yellow
+    if($Global:Logfile -ne $null) {
+        Add-content "$Global:Logfile" -value $titleText
+        Add-content "$Global:Logfile" -value $oracleHomeText
+        Add-content "$Global:Logfile" -value $o2pfolderText
+    }
     for($x=0; $x -lt 2; $x=$x+1) { Write-Host " " }
     ################ ADS Extension for Oracle Assessment ################
 }
