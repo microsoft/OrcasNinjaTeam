@@ -746,7 +746,7 @@ try {
     $o2pfolder = (Get-childitem -Path $ora2pgInstallPath -File -Filter "Makefile.PL" -Recurse | Select-Object -First 1).FullName
     $o2pfolder = [System.IO.Path]::GetDirectoryName($o2pfolder)
     $o2pfolderText = ("Ora2Pg Installation Path  : " + $o2pfolder)
-    $oracleHomeText = ("Oracle Client Library Path: " + $env:ORACLE_HOME)
+    $oracleHomeText = ("Oracle Home Path: " + $env:ORACLE_HOME)
 
     Write-Host $titleText
     Write-Host $oracleHomeText -ForegroundColor Yellow
