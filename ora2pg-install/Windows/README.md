@@ -78,9 +78,3 @@ PS C:\...\repoclone> .\installora2pg.ps1 -InstallFolderPath C:\anyfolder\Ora2PgI
 Once the installation is successful, the installer insures that all the required components are available on the machine. It also configures the interdependencies between the components. But in order to check for proper configuration with Oracle InstantClient we need Oracle database connection which is not available in the installer.
 
 For available scenarios, check the [validation](validation) folder.
-
-## Uninstall
-
-If you have installed ora2pg from scratch using this installer, then you can use **uninstallora2pg.ps1** to uninstall all the components also.
-
-> **IMPORTANT** If Strawberry Perl and Oracle InstantClient components were already installed, it is **not** recommended to use the uninstall script as these components may be getting used by some other software on your machine.
