@@ -310,8 +310,10 @@ Function Update-EnvironmentPath {
     $paths = if($variableValue) { $variableValue -split $delimiter } else { @("") }
 
     if($paths -inotcontains $newPath) {
-        $paths = $paths + @($newPath)
-        $paths = $paths | ? {$_}
+        # add new path to the start of the path list
+        $paths = @($newPath) + $paths
+        # remove empty entries
+        $paths = $paths | Where-Object {$_}
     }
 
     $result = [string]::Join($delimiter, $paths)

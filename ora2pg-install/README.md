@@ -8,7 +8,7 @@ These full installers are created to help new users to quickly install and use t
 
 ## Target Audience
 
-If you are a Windows (10 and above), Ubuntu, RHL or MAcOS user and want to use Ora2pg for assessment and conversion of Oracle database objects to PostgreSQL.
+If you are a Windows (10 and above), Ubuntu, RHL or MacOS user and want to use Ora2pg for assessment and conversion of Oracle database objects to PostgreSQL.
 
 > **NOTE** Only Oracle assessment has been tested on the available platforms. End-to-end conversion and data migrations have not been tested with this installer. There may be some components which are missing or do not work as expected on either of the platforms.
 
