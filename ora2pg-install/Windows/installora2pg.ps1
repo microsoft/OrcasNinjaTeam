@@ -1033,7 +1033,7 @@ Function Install-Ora2Pg
 
     # downloading the latest bits from github
     $version = "v23.1"
-    $versionMatch = (Invoke-WebRequest -Uri $o2pHomeUrl).Content -Match "`"https://github.com/darold/ora2pg/releases/expanded_assets/.*`" "
+    $versionMatch = (Invoke-WebRequest -Uri $o2pHomeUrl).Content -Match "`"https://github.com/darold/ora2pg/releases/expanded_assets/.*?`" "
     if ($versionMatch) {
 	    $uriParts = (($Matches.0).Trim().Replace("`"", "")) -split "/"
         $version = ($uriParts[$uriParts.Length - 1]).Trim()
